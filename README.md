@@ -1,4 +1,4 @@
-# Joyería Dubai 3D
+# Goldzco · Joyería Dubai 3D
 
 Maqueta 3D interactiva del local (Retail 9-01, 9-02 y 9-03, 173,44 m²) para probar distribuciones de muebles y formas de acomodar las prendas en las vitrinas.
 

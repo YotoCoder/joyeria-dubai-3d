@@ -74,7 +74,7 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
 <body>
 <aside id="panel">
   <header>
-    <h1>Joyería Dubai</h1>
+    <h1>Goldzco</h1>
     <p>Retail 9-01 · 9-02 · 9-03 — 173,44 m² — frente 20,10 m</p>
   </header>
 
@@ -277,7 +277,7 @@ class B{
   box(mat,w,h,d,x,y,z,rx=0,ry=0,rz=0){return this.add(mat,new THREE.BoxGeometry(w,h,d),x,y,z,rx,ry,rz);}
   into(group){for(const k in this.b){const g=mergeGeometries(this.b[k]);this.b[k].forEach(x=>x.dispose());const m=new THREE.Mesh(g,M[k]);if(k==='vidrio')m.renderOrder=2;group.add(m);}return group;}
 }
-function limpiar(group){group.traverse(o=>{if(o.geometry)o.geometry.dispose();});group.clear();}
+function limpiar(group){group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.userData.propio){o.material.map&&o.material.map.dispose();o.material.dispose();}});group.clear();}
 
 /* ---------- Muebles ---------- */
 function vitrina(p,b){
@@ -507,14 +507,35 @@ function crearBahia(st,i){
     const n=Math.max(1,Math.round(bw/.8));for(let k=0;k<n;k++)cells.push({key:'0-'+k,x:-bw/2+bw/n*(k+.5),y:.802,z:.3,w:bw/n-.08,h:.5,d:.42,row:0});
   }
   b.into(g);
+  if(st.k==='puerta'){const rw=Math.min(bw*.8,2.6),r=new THREE.Mesh(new THREE.PlaneGeometry(rw,rw*200/1024),new THREE.MeshBasicMaterial({map:texRotulo(),transparent:true,toneMapped:false}));r.userData.propio=true;r.position.set(0,3.5,-.07);r.rotation.y=PI;g.add(r);}
   if(lado==='N')g.position.set((a+c)/2,0,0);else{g.position.set(0,0,(a+c)/2);g.rotation.y=PI/2;}
   gBahias.add(g);
   if(st.k!=='vitrina')st.cells={};
   const o=crearOwner('bahia',{cells},st,g);bahias.push(o);return o;
 }
-function pintarVallas(){limpiar(gVallas);const v=new B();
-  bahias.forEach((o,i)=>{const t=o.st.valla||VALLAS_INI[i];if(t==='no'||o.st.k==='puerta')return;const {a,c,lado}=BAHIAS[i],w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(t,w,h,.05,m,y,-.245):v.box(t,.05,h,w,-.245,y,m);});
-  v.into(gVallas);}
+const ORO='#d9b25a',SERIF="Marcellus, Georgia, 'Times New Roman', serif";
+function espaciado(g,txt,cx,y,px,sep){g.font=px+'px '+SERIF;const ws=[...txt].map(ch=>g.measureText(ch).width),tot=ws.reduce((a,b)=>a+b,0)+sep*(txt.length-1);let x=cx-tot/2;g.textAlign='left';[...txt].forEach((ch,i)=>{g.fillText(ch,x,y);x+=ws[i]+sep;});return tot;}
+function arcos(g,W,y,h,n){g.lineWidth=3;g.globalAlpha=.75;const cw=W/n;for(let i=0;i<n;i++){const x=i*cw;g.beginPath();g.moveTo(x+cw*.12,y+h);g.lineTo(x+cw*.12,y+cw*.38);g.arc(x+cw/2,y+cw*.38,cw*.38,PI,0);g.lineTo(x+cw*.88,y+h);g.stroke();}g.globalAlpha=1;}
+// Valla con diseño propio de Goldzco: nombre, filete y los arcos del piso del local
+function texValla(tono,w,h){const H=1024,W=Math.round(H*w/h);return lienzo(W,H,(g)=>{
+  if(tono==='ambar'){const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#3a2413');gr.addColorStop(.45,'#b97c24');gr.addColorStop(1,'#2e1c10');g.fillStyle=gr;}else g.fillStyle=tono==='verde'?'#2f4a33':'#1f2a44';
+  g.fillRect(0,0,W,H);g.strokeStyle=ORO;g.fillStyle=tono==='ambar'?'#f3e3bd':ORO;g.lineWidth=3;g.strokeRect(34,34,W-68,H-68);
+  g.textBaseline='middle';
+  if(W>=620){const px=Math.min(W*.13,150);espaciado(g,'GOLDZCO',W/2,H*.4,px,px*.22);
+    g.fillRect(W/2-90,H*.4+px*.72,180,3);
+    g.font='500 '+Math.round(px*.2)+'px Manrope, system-ui, sans-serif';g.textAlign='center';g.fillText('J O Y E R Í A',W/2,H*.4+px*1.12);
+    g.save();g.translate(34,0);arcos(g,W-68,H-34-170,170,Math.max(6,Math.round((W-68)/120)));g.restore();}
+  else{const r=W*.27;g.lineWidth=4;g.beginPath();g.arc(W/2,H*.3,r,0,PI*2);g.stroke();g.lineWidth=2;g.beginPath();g.arc(W/2,H*.3,r-12,0,PI*2);g.stroke();
+    g.font=Math.round(r*1.25)+'px '+SERIF;g.textAlign='center';g.fillText('G',W/2,H*.3+r*.06);
+    const px=Math.min((W-110)/6.2,64);espaciado(g,'GOLDZCO',W/2,H*.55,px,px*.14);
+    g.save();g.translate(34,0);arcos(g,W-68,H-34-150,150,3);g.restore();}
+});}
+function texRotulo(){return lienzo(1024,200,(g,W,H)=>{g.clearRect(0,0,W,H);g.fillStyle=ORO;g.textBaseline='middle';espaciado(g,'GOLDZCO',W/2,H*.52,128,30);});}
+function pintarVallas(){limpiar(gVallas);const v=new B(),caras=[];
+  bahias.forEach((o,i)=>{const t=o.st.valla||VALLAS_INI[i];if(t==='no'||o.st.k==='puerta')return;const {a,c,lado}=BAHIAS[i],w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(t,w,h,.05,m,y,-.245):v.box(t,.05,h,w,-.245,y,m);
+    const cara=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshStandardMaterial({map:texValla(t,w,h),roughness:.8}));cara.userData.propio=true;
+    if(lado==='N'){cara.position.set(m,y,-.273);cara.rotation.y=PI;}else{cara.position.set(-.273,y,m);cara.rotation.y=-PI/2;}caras.push(cara);});
+  v.into(gVallas);caras.forEach(c=>gVallas.add(c));}
 function cargar(e){
   seleccionar(null);
   [gItems,gBahias].forEach(g=>{limpiar(g);});items=[];bahias=[];picks=[];
@@ -653,6 +674,7 @@ new ResizeObserver(ajustar).observe(cont);ajustar();
 let inicial=estadoInicial();
 try{const s=JSON.parse(localStorage.getItem('joyeria-dubai-actual')||'null');if(s&&s.items&&s.bahias&&s.items.every(i=>TIPOS[i.tipo]))inicial=s;}catch(e){}
 cargar(inicial);pintarVers();setModo('muebles');vista('general');
+if(document.fonts&&document.fonts.load)document.fonts.load("100px Marcellus").then(()=>cargar(serializar())).catch(()=>{});
 window.__app={vista,setModo,serializar,items:()=>items};
 renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
 </script>
