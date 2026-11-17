@@ -513,7 +513,7 @@ function crearBahia(st,i){
   const o=crearOwner('bahia',{cells},st,g);bahias.push(o);return o;
 }
 function pintarVallas(){limpiar(gVallas);const v=new B();
-  bahias.forEach((o,i)=>{const t=o.st.valla||VALLAS_INI[i];if(t==='no')return;const {a,c,lado}=BAHIAS[i],w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(t,w,h,.05,m,y,-.245):v.box(t,.05,h,w,-.245,y,m);});
+  bahias.forEach((o,i)=>{const t=o.st.valla||VALLAS_INI[i];if(t==='no'||o.st.k==='puerta')return;const {a,c,lado}=BAHIAS[i],w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(t,w,h,.05,m,y,-.245):v.box(t,.05,h,w,-.245,y,m);});
   v.into(gVallas);}
 function cargar(e){
   seleccionar(null);
@@ -619,7 +619,7 @@ function pintarBahias(){
   let nN=0,nO=0;
   $('#bahias').innerHTML=bahias.map((o,i)=>{const {a,c,lado}=BAHIAS[i],nom=lado==='N'?'Frente '+(++nN):'Lateral '+(++nO);
     const op=(v,t)=>`<option value="${v}"${o.st.k===v?' selected':''}>${t}</option>`;
-    return `<label for="bah${i}">${nom} · ${(c-a).toFixed(2).replace('.',',')} m</label><select id="bah${i}" data-i="${i}">${op('vitrina','Vitrina a la calle')}${op('puerta','Puerta')}${op('muro','Cerrado por dentro')}</select><select id="val${i}" data-v="${i}" aria-label="Valla de ${nom}">${Object.entries(VALLAS).map(([k,t])=>`<option value="${k}"${(o.st.valla||VALLAS_INI[i])===k?' selected':''}>${t}</option>`).join('')}</select>`;}).join('');
+    return `<label for="bah${i}">${nom} · ${(c-a).toFixed(2).replace('.',',')} m</label><select id="bah${i}" data-i="${i}">${op('vitrina','Vitrina a la calle')}${op('puerta','Puerta')}${op('muro','Cerrado por dentro')}</select><select id="val${i}" data-v="${i}" aria-label="Valla de ${nom}"${o.st.k==='puerta'?' disabled':''}>${o.st.k==='puerta'?'<option>Entrada libre</option>':''}${(o.st.k==='puerta'?[]:Object.entries(VALLAS)).map(([k,t])=>`<option value="${k}"${(o.st.valla||VALLAS_INI[i])===k?' selected':''}>${t}</option>`).join('')}</select>`;}).join('');
 }
 $('#chk-ext').onchange=e=>exterior(e.target.checked);
 $('#chk-vallas').onchange=e=>{gVallas.visible=e.target.checked;if(e.target.checked)exterior(true);};
