@@ -51,7 +51,8 @@ button:disabled{opacity:.4;cursor:default;border-color:var(--linea)}
 #sel b{display:block;font-size:13.5px}
 #sel span{color:var(--tenue);font-size:12px;display:block}
 select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);border-radius:6px;padding:6px 8px;min-width:0;width:100%}
-.bahia{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 10px}
+.bahia{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:5px 6px}
+.bahia label{grid-column:1/-1;margin-top:4px}
 .bahia label{color:var(--tenue);font-size:12px}
 .chk{display:flex;gap:8px;align-items:center;font-size:12.5px}
 .chk input{accent-color:var(--oro);width:15px;height:15px;margin:0}
@@ -136,8 +137,8 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
     <h2>Vanos de fachada</h2>
     <p class="nota">Frente: del 1 en la esquina al 5 junto a la escalera. Lateral: del 1 en la esquina hacia el fondo.</p>
     <div class="bahia" id="bahias"></div>
-    <label class="chk"><input type="checkbox" id="chk-ext"> Mostrar el exterior (piedra, pérgolas, vidrio alto)</label>
-    <label class="chk"><input type="checkbox" id="chk-vallas" checked> Vallas de obra sobre los vanos</label>
+    <label class="chk"><input type="checkbox" id="chk-ext" checked> Mostrar el exterior (piedra, pérgolas, vidrio alto)</label>
+    <label class="chk"><input type="checkbox" id="chk-vallas" checked> Mostrar las vallas de obra</label>
   </section>
 
   <section>
@@ -186,6 +187,8 @@ const PIL_O=[[0,.5],[1.675,2.825],[5.875,6.73]]; // pilares del lateral oeste (z
 const COLUMNAS=[[3.7,0.7,2.3],[3.7,5.4,6.6],[12.0,0.7,2.3],[12.0,5.4,6.6]]; // x, z0, z1
 
 const BAHIAS=[...PILARES.slice(0,-1).map((p,i)=>({a:p[1],c:PILARES[i+1][0],lado:'N'})),{a:.5,c:1.675,lado:'O'},{a:2.825,c:5.875,lado:'O'},{a:6.73,c:10.04,lado:'O'}];
+const VALLAS_INI=['ambar','marino','marino','marino','ambar','marino','verde','verde'];
+const VALLAS={no:'Sin valla',marino:'Valla azul marino',verde:'Valla verde',ambar:'Valla ámbar'};
 const BAHIAS_INI=['vitrina','puerta','vitrina','puerta','vitrina','vitrina','vitrina','muro'];
 
 /* ---------- Escena ---------- */
@@ -437,7 +440,7 @@ function muro(x1,z1,x2,z2,nx,nz,mat=M.pared,y0=0,y1=L.alto){
 })();
 
 /* ---------- Exterior: piedra, vidrio alto, pérgolas y acera (según las fotos de fachada) ---------- */
-const gExt=new THREE.Group();gExt.visible=false;scene.add(gExt);
+const gExt=new THREE.Group();scene.add(gExt);
 const gVallas=new THREE.Group();gExt.add(gVallas); // vallas de obra que hoy tapan los vanos
 (function construirExterior(){
   const b=new B(),HE=4.9,HT=4.15; // alto de la piedra y del vidrio alto
@@ -457,9 +460,6 @@ const gVallas=new THREE.Group();gExt.add(gVallas); // vallas de obra que hoy tap
   });
   b.box('acera',L.ancho+10,.04,5,L.ancho/2-2.5,-.03,-2.5);b.box('acera',5,.04,L.fondo901+1,-2.5,-.03,L.fondo901/2+.5);
   b.into(gExt);
-  const v=new B(),tonos=['ambar','marino','marino','marino','ambar','marino','verde','verde'];
-  BAHIAS.forEach(({a,c,lado},i)=>{const w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(tonos[i],w,h,.05,m,y,-.245):v.box(tonos[i],.05,h,w,-.245,y,m);});
-  v.into(gVallas);
 })();
 
 /* ---------- Estado ---------- */
@@ -479,7 +479,7 @@ const gItems=new THREE.Group(),gBahias=new THREE.Group();scene.add(gItems,gBahia
 const hist=[];let nAgregados=0;
 const clon=o=>JSON.parse(JSON.stringify(o));
 function recordar(){hist.push(JSON.stringify(serializar()));if(hist.length>40)hist.shift();}
-function serializar(){return {v:1,items:items.map(o=>({id:o.st.id,tipo:o.tipo,x:+o.st.x.toFixed(3),z:+o.st.z.toFixed(3),rot:o.st.rot,cells:o.st.cells})),bahias:bahias.map(o=>({k:o.st.k,cells:o.st.cells}))};}
+function serializar(){return {v:1,items:items.map(o=>({id:o.st.id,tipo:o.tipo,x:+o.st.x.toFixed(3),z:+o.st.z.toFixed(3),rot:o.st.rot,cells:o.st.cells})),bahias:bahias.map(o=>({k:o.st.k,valla:o.st.valla||null,cells:o.st.cells}))};}
 let picks=[];
 function crearOwner(tipo,def,st,group){
   const o={tipo,def,st,group,cellGroup:new THREE.Group()};group.add(cellGroup(o));
@@ -512,12 +512,15 @@ function crearBahia(st,i){
   if(st.k!=='vitrina')st.cells={};
   const o=crearOwner('bahia',{cells},st,g);bahias.push(o);return o;
 }
+function pintarVallas(){limpiar(gVallas);const v=new B();
+  bahias.forEach((o,i)=>{const t=o.st.valla||VALLAS_INI[i];if(t==='no')return;const {a,c,lado}=BAHIAS[i],w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(t,w,h,.05,m,y,-.245):v.box(t,.05,h,w,-.245,y,m);});
+  v.into(gVallas);}
 function cargar(e){
   seleccionar(null);
   [gItems,gBahias].forEach(g=>{limpiar(g);});items=[];bahias=[];picks=[];
   e.bahias=BAHIAS.map((_,i)=>e.bahias[i]||{k:BAHIAS_INI[i]});
   estado=e;e.items.forEach(crearItem);e.bahias.forEach(crearBahia);
-  pintarBahias();autoguardar();
+  pintarBahias();pintarVallas();autoguardar();
 }
 function autoguardar(){try{localStorage.setItem('joyeria-dubai-actual',JSON.stringify(serializar()));}catch(e){}}
 
@@ -585,7 +588,7 @@ addEventListener('keydown',e=>{
 
 /* ---------- Vistas ---------- */
 const VISTAS={
-  general:[[10.05,13.5,-10.5],[10.05,.6,3.6],46],
+  general:[[9.4,25,-6.5],[9.4,.6,4.3],46],
   planta:[[10.05,24,5.02],[10.05,0,5],46],
   entrada:[[14.4,1.62,.9],[8.5,1.25,6.6],68],
   pasillo:[[19.3,1.62,3.75],[2,1.2,3.75],62],
@@ -595,7 +598,7 @@ const VISTAS={
   lateral:[[-9,1.7,-6.5],[2,2.1,3],58],
 };
 function exterior(v){gExt.visible=v;$('#chk-ext').checked=v;}
-function vista(k){const [p,t,f]=VISTAS[k];exterior(k==='fachada'||k==='lateral');camera.position.set(...p);controls.target.set(...t);camera.fov=f;camera.updateProjectionMatrix();controls.update();}
+function vista(k){const [p,t,f]=VISTAS[k];camera.position.set(...p);controls.target.set(...t);camera.fov=f;camera.updateProjectionMatrix();controls.update();}
 
 /* ---------- Interfaz ---------- */
 let tAviso;function aviso(t){const a=$('#aviso');a.textContent=t;a.style.display='block';clearTimeout(tAviso);tAviso=setTimeout(()=>a.style.display='none',3200);}
@@ -616,11 +619,12 @@ function pintarBahias(){
   let nN=0,nO=0;
   $('#bahias').innerHTML=bahias.map((o,i)=>{const {a,c,lado}=BAHIAS[i],nom=lado==='N'?'Frente '+(++nN):'Lateral '+(++nO);
     const op=(v,t)=>`<option value="${v}"${o.st.k===v?' selected':''}>${t}</option>`;
-    return `<label for="bah${i}">${nom} · ${(c-a).toFixed(2).replace('.',',')} m</label><select id="bah${i}" data-i="${i}">${op('vitrina','Vitrina a la calle')}${op('puerta','Puerta')}${op('muro','Cerrado por dentro')}</select>`;}).join('');
+    return `<label for="bah${i}">${nom} · ${(c-a).toFixed(2).replace('.',',')} m</label><select id="bah${i}" data-i="${i}">${op('vitrina','Vitrina a la calle')}${op('puerta','Puerta')}${op('muro','Cerrado por dentro')}</select><select id="val${i}" data-v="${i}" aria-label="Valla de ${nom}">${Object.entries(VALLAS).map(([k,t])=>`<option value="${k}"${(o.st.valla||VALLAS_INI[i])===k?' selected':''}>${t}</option>`).join('')}</select>`;}).join('');
 }
 $('#chk-ext').onchange=e=>exterior(e.target.checked);
 $('#chk-vallas').onchange=e=>{gVallas.visible=e.target.checked;if(e.target.checked)exterior(true);};
-$('#bahias').onchange=e=>{const i=+e.target.dataset.i;recordar();const s=serializar();s.bahias[i]={k:e.target.value,cells:null};cargar(s);};
+$('#bahias').onchange=e=>{recordar();if(e.target.dataset.v!==undefined){bahias[+e.target.dataset.v].st.valla=e.target.value;pintarVallas();autoguardar();return;}
+  const i=+e.target.dataset.i,s=serializar();s.bahias[i]={k:e.target.value,valla:s.bahias[i].valla,cells:null};cargar(s);};
 
 /* versiones */
 function leerVers(){try{return JSON.parse(localStorage.getItem('joyeria-dubai-versiones')||'{}');}catch(e){return {};}}
