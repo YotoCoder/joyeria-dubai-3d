@@ -17,3 +17,7 @@ Abre `index.html` en un navegador actualizado (Chrome, Edge o Safari). Necesita 
 - Estimado a partir de fotos y video: posición de cada mueble, altura del techo (3,30 m), medidas de las vitrinas, ubicación de la bóveda y cuáles vanos son puerta.
 
 Los botones de guardar imagen y exportar archivo solo funcionan en la versión publicada dentro de Claude.
+
+## Segundo local
+
+`local2/index.html` es la misma herramienta adaptada al segundo local (F&B 02, 110,80 m²), con los muebles blancos con filetes cobre y vidrio que aparecen en su video. La posición de los muebles y de la oficina es una estimación a partir del video.

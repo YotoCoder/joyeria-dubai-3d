@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goldzco Local 2 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: panel de control fijo a la izquierda, escena 3D ocupando el resto. Un solo tema oscuro (sala de exhibición). */
+:root{
+  color-scheme: dark;
+  --fondo:#171210;      /* espresso */
+  --panel:#211a17;
+  --panel-2:#2c2420;
+  --linea:#3d322c;
+  --texto:#efe6d6;      /* marfil */
+  --tenue:#a99c8a;
+  --oro:#d0a94e;
+  --caoba:#7a2e1e;
+  --f-display:'Marcellus', Georgia, serif;
+  --f-body:'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--fondo);color:var(--texto);font-family:var(--f-body);font-size:13px;line-height:1.45;display:flex;overflow:hidden}
+#panel{width:316px;flex:none;background:var(--panel);border-right:1px solid var(--linea);display:flex;flex-direction:column;overflow-y:auto}
+#escena{flex:1;position:relative;min-width:0;min-height:0;background:radial-gradient(ellipse at 50% 30%,#3a302b 0%,#1a1513 70%)}
+#escena canvas{display:block;width:100%;height:100%;touch-action:none}
+header{padding:16px 16px 12px;border-bottom:1px solid var(--linea)}
+h1{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;letter-spacing:.02em;color:var(--oro)}
+header p{margin:4px 0 0;color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums}
+section{padding:12px 16px;border-bottom:1px solid var(--linea);display:flex;flex-direction:column;gap:8px}
+h2{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tenue);margin:0}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel-2);border:1px solid var(--linea);border-radius:6px;padding:7px 9px;cursor:pointer;text-align:left;line-height:1.25}
+button:hover{border-color:var(--oro)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--oro);outline-offset:1px}
+button[aria-pressed="true"]{background:var(--oro);border-color:var(--oro);color:#1b1410;font-weight:700}
+button:disabled{opacity:.4;cursor:default;border-color:var(--linea)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.seg button{text-align:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#catalogo button,#paleta button{font-size:12.5px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.grid3 button,.fila button{text-align:center}
+.fila{display:flex;gap:5px;flex-wrap:wrap}
+.fila>*{flex:1}
+.nuevo::after{content:"nuevo";margin-left:6px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--oro);border:1px solid var(--oro);border-radius:3px;padding:0 3px;vertical-align:1px}
+#sel{background:var(--panel-2);border-radius:6px;padding:8px 10px;font-variant-numeric:tabular-nums;min-height:54px}
+#sel b{display:block;font-size:13.5px}
+#sel span{color:var(--tenue);font-size:12px;display:block}
+select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);border-radius:6px;padding:6px 8px;min-width:0;width:100%}
+.bahia{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:5px 6px}
+.bahia label{grid-column:1/-1;margin-top:4px}
+.bahia label{color:var(--tenue);font-size:12px}
+.chk{display:flex;gap:8px;align-items:center;font-size:12.5px}
+.chk input{accent-color:var(--oro);width:15px;height:15px;margin:0}
+#versiones{display:flex;flex-direction:column;gap:4px}
+.ver{display:flex;gap:4px;align-items:center}
+.ver span{flex:1;overflow-wrap:anywhere}
+.ver button{padding:4px 7px;font-size:12px}
+.nota{color:var(--tenue);font-size:11.5px;margin:0}
+#ayuda{position:absolute;left:12px;bottom:10px;max-width:calc(100% - 24px);color:#efe6d6;font-size:12px;background:#171210cc;border-radius:6px;padding:5px 10px;pointer-events:none}
+#aviso{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#000b;border:1px solid var(--oro);padding:6px 12px;border-radius:6px;font-size:12.5px;display:none;max-width:90%}
+#error{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center}
+[hidden]{display:none!important}
+@media (max-width:820px){
+  body{flex-direction:column-reverse}
+  #panel{width:100%;height:46%;border-right:0;border-top:1px solid var(--linea)}
+}
+</style>
+</head>
+<body>
+<aside id="panel">
+  <header>
+    <h1>Goldzco · Local 2</h1>
+    <p>F&amp;B 02, edificio 1 — 110,80 m² — 8,90 × 13,90 m</p>
+  </header>
+
+  <section>
+    <h2>Qué quieres hacer</h2>
+    <div class="seg" role="group" aria-label="Modo">
+      <button id="modo-muebles" aria-pressed="true">Mover muebles</button>
+      <button id="modo-prendas" aria-pressed="false">Acomodar prendas</button>
+    </div>
+  </section>
+
+  <section id="sec-muebles">
+    <h2>Mueble seleccionado</h2>
+    <div id="sel"><span>Haz clic en un mueble para seleccionarlo y arrástralo por el piso.</span></div>
+    <div class="grid3">
+      <button id="b-girar" title="Tecla R">Girar 90°</button>
+      <button id="b-girar15">Girar 15°</button>
+      <button id="b-pared" title="Pegar el mueble a la pared más cercana">A la pared</button>
+      <button id="b-duplicar" title="Ctrl + D">Duplicar</button>
+      <button id="b-eliminar" title="Tecla Supr">Eliminar</button>
+      <button id="b-deshacer" title="Ctrl + Z">Deshacer</button>
+    </div>
+    <h2 style="margin-top:6px">Agregar mueble</h2>
+    <div class="grid2" id="catalogo"></div>
+  </section>
+
+  <section id="sec-prendas" hidden>
+    <h2>Tipo de exhibición</h2>
+    <div class="grid2" id="paleta"></div>
+    <h2 style="margin-top:6px">Al hacer clic se aplica a</h2>
+    <div class="seg" role="group" aria-label="Alcance">
+      <button data-alc="celda" aria-pressed="true">Compartimiento</button>
+      <button data-alc="fila" aria-pressed="false">Fila</button>
+      <button data-alc="mueble" aria-pressed="false">Mueble</button>
+    </div>
+    <div class="fila">
+      <button id="b-llenar">Aplicar a todo el local</button>
+      <button id="b-mezcla">Surtido de ejemplo</button>
+      <button id="b-vaciar">Vaciar todo</button>
+    </div>
+    <button id="b-deshacer2">Deshacer</button>
+  </section>
+
+  <section>
+    <h2>Vistas</h2>
+    <div class="grid3" id="vistas">
+      <button data-v="general">General</button>
+      <button data-v="planta">Planta</button>
+      <button data-v="entrada">Entrada</button>
+      <button data-v="pasillo">Salón</button>
+      <button data-v="vitrinas">Pared</button>
+      <button data-v="mostrador">Fondo</button>
+      <button data-v="fachada">Fachada</button>
+      <button data-v="lateral">Lateral</button>
+    </div>
+    <button id="b-png" hidden>Guardar imagen de esta vista (PNG)</button>
+  </section>
+
+  <section>
+    <h2>Vanos de fachada</h2>
+    <p class="nota">Los vanos se cuentan desde la esquina de las dos fachadas. La fachada norte da a la plaza de césped.</p>
+    <div class="bahia" id="bahias"></div>
+    <label class="chk"><input type="checkbox" id="chk-ext" checked> Mostrar el exterior (piedra, pérgolas, vidrio alto)</label>
+    <label class="chk"><input type="checkbox" id="chk-vallas"> Mostrar las vallas de obra</label>
+  </section>
+
+  <section>
+    <h2>Versiones guardadas</h2>
+    <div class="fila">
+      <input type="text" id="ver-nombre" placeholder="Nombre de la versión" aria-label="Nombre de la versión">
+      <button id="b-guardar" style="flex:none">Guardar</button>
+    </div>
+    <div id="versiones"></div>
+    <div class="fila">
+      <button id="b-exportar" hidden>Exportar archivo</button>
+      <button id="b-importar">Importar archivo</button>
+      <button id="b-reset">Volver al inicio</button>
+    </div>
+    <input type="file" id="archivo" accept=".json,application/json" hidden>
+    <p class="nota">Las versiones se guardan en este navegador. Exporta el archivo para conservarlas o pasarlas a otro equipo.</p>
+  </section>
+
+  <section>
+    <p class="nota">El local está a escala según el plano F&amp;B 02. La posición de cada mueble y la de la oficina son una estimación a partir del video: corrígela arrastrando.</p>
+  </section>
+</aside>
+
+<main id="escena">
+  <div id="aviso" role="status"></div>
+  <div id="ayuda">Arrastrar el fondo: girar la vista · Rueda: acercar · Clic derecho o dos dedos: desplazar</div>
+  <div id="error">No se pudo iniciar la vista 3D en este navegador. Prueba con Chrome, Edge o Safari actualizados.</div>
+</main>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const PI=Math.PI, rad=d=>d*PI/180;
+
+/* ---------- Medidas del local (metros, del plano F&B 02) ----------
+   x = 0 es la fachada norte (dos puertas, da a la plaza); z = 0 es la fachada este (una puerta).
+   Salón: 8,90 × 11,00. Detrás, la oficina: x 0–5,20, z 11,00–13,15, y un rincón x 0–2,30 hasta z 13,90. */
+const L={ancho:8.9, fondo:11.0, fondo901:13.9, xOf:5.2, zOf:13.15, xRin:2.3, alto:3.5};
+const PILARES=[[0,.54],[4.18,4.74],[8.38,8.9]];
+const PIL_O=[[0,.82],[1.84,1.92],[5.52,6.385],[9.73,10.28],[13.15,13.9]];
+const VALLAS_INI=['marino','ambar','marino','ambar','marino','marino'];
+const VALLAS={no:'Sin valla',marino:'Valla azul marino',verde:'Valla verde',ambar:'Valla ámbar'};
+const BAHIAS=[{a:.54,c:4.18,lado:'N'},{a:4.74,c:8.38,lado:'N'},{a:.82,c:1.84,lado:'O'},{a:1.92,c:5.52,lado:'O'},{a:6.385,c:9.73,lado:'O'},{a:10.28,c:13.15,lado:'O'}];
+const BAHIAS_INI=['esmerilado','puerta','esmerilado','puerta','puerta','esmerilado'];
+
+/* ---------- Escena ---------- */
+const cont=$('#escena');
+let renderer;
+try{ renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true}); }
+catch(e){ $('#error').style.display='flex'; throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+cont.prepend(renderer.domElement);
+const canvas=renderer.domElement;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x1d1715);
+const pmrem=new THREE.PMREMGenerator(renderer);
+scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+const camera=new THREE.PerspectiveCamera(50,1,0.08,200);
+const controls=new OrbitControls(camera,canvas);
+controls.enableDamping=true; controls.dampingFactor=.12; controls.maxPolarAngle=PI/2-0.02; controls.minDistance=.3; controls.maxDistance=60;
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8880,1.0));
+const sol=new THREE.DirectionalLight(0xfff1d8,1.1); sol.position.set(6,14,-8); scene.add(sol);
+[2.2,5.6,9].forEach(z=>{const p=new THREE.PointLight(0xfff1dc,16,10,2); p.position.set(4.6,3.1,z); scene.add(p);});
+
+/* ---------- Texturas dibujadas ---------- */
+function lienzo(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;}
+function rnd(seed){let s=seed;return()=>(s=(s*16807)%2147483647)/2147483647;}
+const texPared=lienzo(256,16,(g,w,h)=>{ // revestimiento blanco acanalado de las columnas
+  g.fillStyle='#f3f1ec';g.fillRect(0,0,w,h);for(let x=8;x<w;x+=16){g.fillStyle='#dcd9d2';g.fillRect(x,0,2,h);g.fillStyle='#ffffff';g.fillRect(x+2,0,1,h);}});
+const texPiso=lienzo(512,512,(g,w,h)=>{const r=rnd(5);g.fillStyle='#c6c5c0';g.fillRect(0,0,w,h);
+  for(let i=0;i<40;i++){g.strokeStyle=`rgba(${r()>.5?255:150},${r()>.5?255:150},${r()>.5?250:145},${.06+r()*.14})`;g.lineWidth=1+r()*7;g.beginPath();let x=r()*w,y=r()*h;g.moveTo(x,y);for(let k=0;k<4;k++){x+=(r()-.5)*260;y+=(r()-.5)*260;g.lineTo(x,y);}g.stroke();}
+  g.strokeStyle='#bdbbb5';g.lineWidth=2;g.strokeRect(0,0,w,h);});
+texPiso.wrapS=texPiso.wrapT=THREE.RepeatWrapping;
+const texMarmol=lienzo(512,512,(g,w,h)=>{ // incrustación de mármol oscuro con líneas crema
+  const r=rnd(7);g.fillStyle='#3b2f29';g.fillRect(0,0,w,h);
+  for(let i=0;i<90;i++){g.strokeStyle=`rgba(${120+r()*60|0},${100+r()*50|0},${85+r()*40|0},${.05+r()*.12})`;g.lineWidth=1+r()*5;g.beginPath();let x=r()*w,y=r()*h;g.moveTo(x,y);for(let k=0;k<5;k++){x+=(r()-.5)*160;y+=(r()-.5)*160;g.lineTo(x,y);}g.stroke();}
+  g.strokeStyle='#e9dfc9';g.lineWidth=9;g.lineCap='round';
+  const cw=w/4,rh=h/2;
+  for(let row=0;row<2;row++)for(let c=-1;c<5;c++){
+    const x=c*cw+(row?cw/2:0),y=row*rh;
+    g.beginPath();g.moveTo(x,y+rh);g.lineTo(x,y+cw/2);g.arc(x+cw/2,y+cw/2,cw/2,PI,0);g.lineTo(x+cw,y+rh);g.stroke();
+    g.beginPath();g.moveTo(x,y+rh);g.lineTo(x+cw,y+rh);g.stroke();
+  }
+});
+texMarmol.wrapS=texMarmol.wrapT=THREE.RepeatWrapping;
+const texPiedra=lienzo(256,1024,(g,w,h)=>{ // piedra en hiladas: caliza crema con franjas arenisca
+  const r=rnd(11),n=16;for(let i=0;i<n;i++){const y=i*h/n;g.fillStyle=i%5===2?'#dfb67c':i%5===4?'#e6caa0':'#ead9b8';g.fillRect(0,y,w,h/n);
+    for(let k=0;k<60;k++){g.fillStyle=`rgba(${r()>.5?255:120},${r()>.5?240:90},${r()>.5?210:50},${r()*.06})`;g.fillRect(r()*w,y+r()*h/n,6+r()*40,2+r()*5);}
+    g.fillStyle='rgba(90,60,30,.35)';g.fillRect(0,y,w,2);}});
+const texAmbar=lienzo(8,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#3a2413');gr.addColorStop(.45,'#c98a2a');gr.addColorStop(1,'#2e1c10');g.fillStyle=gr;g.fillRect(0,0,w,h);});
+const texCaoba=lienzo(512,256,(g,w,h)=>{const r=rnd(3);g.fillStyle='#4a1a11';g.fillRect(0,0,w,h);
+  for(let i=0;i<260;i++){g.strokeStyle=`rgba(${r()>.5?120:20},${r()>.5?45:8},${14},${.05+r()*.13})`;g.lineWidth=.6+r()*2.4;const y=r()*h;g.beginPath();g.moveTo(0,y);g.bezierCurveTo(w*.3,y+(r()-.5)*14,w*.7,y+(r()-.5)*14,w,y+(r()-.5)*8);g.stroke();}});
+
+/* ---------- Materiales (los mismos para todos los muebles) ---------- */
+const M={
+  caoba:new THREE.MeshPhysicalMaterial({map:texCaoba,roughness:.22,clearcoat:1,clearcoatRoughness:.08}),
+  ebano:new THREE.MeshPhysicalMaterial({color:0x1d1413,roughness:.25,clearcoat:1,clearcoatRoughness:.06}),
+  crema:new THREE.MeshStandardMaterial({color:0xf1e8d2,roughness:.55}),
+  vidrio:new THREE.MeshStandardMaterial({color:0xd7efe9,roughness:.03,metalness:.1,transparent:true,opacity:.14,depthWrite:false}),
+  oro:new THREE.MeshStandardMaterial({color:0xe2b33c,metalness:1,roughness:.24,emissive:0x3a2600,emissiveIntensity:.5}),
+  laton:new THREE.MeshStandardMaterial({color:0xb5925a,metalness:.95,roughness:.3}),
+  cobre:new THREE.MeshStandardMaterial({color:0xb87248,metalness:.9,roughness:.32}),
+  velvet:new THREE.MeshStandardMaterial({color:0x14100f,roughness:.95}),
+  led:new THREE.MeshStandardMaterial({color:0xfff3d6,emissive:0xffe9b8,emissiveIntensity:1.6}),
+  acero:new THREE.MeshStandardMaterial({color:0xe9e6dd,roughness:.45,metalness:.2}),
+  pared:new THREE.MeshStandardMaterial({map:texPared,roughness:.3}),
+  lisa:new THREE.MeshStandardMaterial({color:0xe7dcc0,roughness:.35}),
+  techo:new THREE.MeshStandardMaterial({color:0xf4f1ea,roughness:.9}),
+  piedra:new THREE.MeshStandardMaterial({map:texPiedra,roughness:.85}),
+  granito:new THREE.MeshStandardMaterial({color:0x2b2623,roughness:.35}),
+  tinte:new THREE.MeshStandardMaterial({color:0x1a1210,roughness:.06,metalness:.5}),
+  bronce:new THREE.MeshStandardMaterial({color:0x4a4038,roughness:.5,metalness:.6}),
+  marino:new THREE.MeshStandardMaterial({color:0x1f2a44,roughness:.8}),
+  verde:new THREE.MeshStandardMaterial({color:0x2f4a33,roughness:.8}),
+  ambar:new THREE.MeshStandardMaterial({map:texAmbar,roughness:.8}),
+  acera:new THREE.MeshStandardMaterial({color:0x9c9891,roughness:.9}),
+  tapiz:new THREE.MeshStandardMaterial({color:0xd9c9a8,roughness:.8}),
+};
+
+Object.assign(M,{
+  blanco:new THREE.MeshPhysicalMaterial({color:0xf5f3ee,roughness:.28,clearcoat:.6,clearcoatRoughness:.2}),
+  caoba:new THREE.MeshPhysicalMaterial({color:0xf5f3ee,roughness:.28,clearcoat:.6,clearcoatRoughness:.2}),
+  ebano:new THREE.MeshPhysicalMaterial({color:0xeceae4,roughness:.3,clearcoat:.5,clearcoatRoughness:.2}),
+  crema:new THREE.MeshStandardMaterial({color:0xfaf9f6,roughness:.5}),
+  cobre:new THREE.MeshStandardMaterial({color:0xe0a888,metalness:.65,roughness:.34,emissive:0x3a1c10,emissiveIntensity:.35}),
+  laton:new THREE.MeshStandardMaterial({color:0xe0a888,metalness:.65,roughness:.34,emissive:0x3a1c10,emissiveIntensity:.35}),
+  vidrio:new THREE.MeshStandardMaterial({color:0xb9e6d2,roughness:.03,metalness:.1,transparent:true,opacity:.2,depthWrite:false}),
+  esmeril:new THREE.MeshStandardMaterial({color:0xaeb5b1,roughness:.55,transparent:true,opacity:.82}),
+  junta:new THREE.MeshStandardMaterial({color:0xc9c6bf,roughness:.8}),
+  pared:new THREE.MeshStandardMaterial({map:texPared,roughness:.35}),
+  lisa:new THREE.MeshStandardMaterial({color:0xf4f2ed,roughness:.4}),
+  cesped:new THREE.MeshStandardMaterial({color:0x2f6426,roughness:1}),
+  tapiz:new THREE.MeshStandardMaterial({color:0xe6e2da,roughness:.8}),
+});
+
+/* ---------- Constructor: junta la geometría por material ---------- */
+class B{
+  constructor(){this.b={};}
+  add(mat,g,x=0,y=0,z=0,rx=0,ry=0,rz=0){const m=new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx,ry,rz));m.setPosition(x,y,z);g.applyMatrix4(m);(this.b[mat]??=[]).push(g);return this;}
+  box(mat,w,h,d,x,y,z,rx=0,ry=0,rz=0){return this.add(mat,new THREE.BoxGeometry(w,h,d),x,y,z,rx,ry,rz);}
+  into(group){for(const k in this.b){const g=mergeGeometries(this.b[k]);this.b[k].forEach(x=>x.dispose());const m=new THREE.Mesh(g,M[k]);if(k==='vidrio')m.renderOrder=2;group.add(m);}return group;}
+}
+function limpiar(group){group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.userData.propio){o.material.map&&o.material.map.dispose();o.material.dispose();}});group.clear();}
+
+/* ---------- Muebles ---------- */
+function vitrina(p,b){
+  const cols=p.cols,rows=p.rows,cw=p.cellW||.7,ch=p.cellH||.44,D=.45,side=.05,rail=.09,base=.85,top=.28;
+  const W=cols*cw+2*side,zona=rows*(ch+rail),cells=[],rod=c=>!!(p.rodCols&&p.rodCols.includes(c));
+  b.box('led',W-.06,.1,D-.08,0,.05,-.02);
+  b.box('ebano',W,base-.1,D,0,.1+(base-.1)/2,0);
+  for(let i=1;i<Math.round(W/.5);i++)b.box('velvet',.006,base-.16,.004,-W/2+i*W/Math.round(W/.5),.1+(base-.1)/2,D/2+.001);
+  b.box('crema',W-.02,zona,.02,0,base+zona/2,-D/2+.012);
+  b.box('caoba',side,zona,D,-W/2+side/2,base+zona/2,0);
+  b.box('caoba',side,zona,D,W/2-side/2,base+zona/2,0);
+  for(let c=1;c<cols;c++)if(!(rod(c-1)&&rod(c)))b.box('caoba',.04,zona,D,-W/2+side+c*cw,base+zona/2,0);
+  for(let c=0;c<cols;c++){const x=-W/2+side+cw*(c+.5);
+    for(let r=0;r<rows;r++){const y0=base+r*(ch+rail);
+      if(!rod(c)||r===0){b.box('caoba',cw,rail,D,x,y0+rail/2,0);b.box('crema',cw-.05,.006,D-.06,x,y0+rail+.003,.01);}
+      if(rod(c))b.add('laton',new THREE.CylinderGeometry(.011,.011,cw,8),x,y0+rail+ch-.04,.04,0,0,PI/2);
+      else{b.box('vidrio',cw-.05,ch-.012,.008,x,y0+rail+ch/2,D/2-.012);b.box('laton',.03,.028,.022,x+(c%2?-1:1)*(cw/2-.07),y0+rail+.03,D/2-.004);}
+      cells.push({key:r+'-'+c,x,y:y0+rail+.006,z:.015,w:cw-.07,h:ch-.03,d:D-.12,rod:rod(c),row:r});
+    }}
+  b.box('caoba',W+.02,top,D+.02,0,base+zona+top/2,0);
+  let H=base+zona+top;
+  if(p.tall){b.box('ebano',W+.12,3.0,.07,0,1.5,-D/2+.035);H=3.0;}
+  return {w:W,h:H,d:D,cells};
+}
+function mostrador(p,b){
+  const n=p.n,cw=.75,W=n*cw,D=.6,cells=[];
+  b.box('led',W-.06,.08,D-.08,0,.04,0);
+  b.box('ebano',W,.54,D,0,.35,0);
+  b.box('caoba',W+.01,.07,D+.01,0,.655,0);
+  b.box('crema',W-.04,.008,D-.04,0,.694,0);
+  b.box('vidrio',W,.3,.008,0,.84,D/2-.004);b.box('vidrio',W,.3,.008,0,.84,-D/2+.004);
+  b.box('vidrio',.008,.3,D,-W/2+.004,.84,0);b.box('vidrio',.008,.3,D,W/2-.004,.84,0);
+  b.box('vidrio',W,.008,D,0,.994,0);
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=>b.box('laton',.014,.3,.014,sx*(W/2-.007),.84,sz*(D/2-.007)));
+  for(let c=0;c<n;c++)cells.push({key:'0-'+c,x:-W/2+cw*(c+.5),y:.698,z:0,w:cw-.08,h:.27,d:D-.12,row:0});
+  return {w:W,h:1.0,d:D,cells};
+}
+function torre(p,b){
+  const W=.5,cells=[];
+  b.box('led',W-.06,.08,W-.06,0,.04,0);b.box('ebano',W,.8,W,0,.48,0);b.box('caoba',W+.01,.07,W+.01,0,.915,0);
+  [[0,W/2-.004,W,.008],[0,-W/2+.004,W,.008]].forEach(([x,z,w,d])=>b.box('vidrio',w,.92,d,x,1.41,z));
+  b.box('vidrio',.008,.92,W,-W/2+.004,1.41,0);b.box('vidrio',.008,.92,W,W/2-.004,1.41,0);
+  b.box('crema',W-.03,.008,W-.03,0,.954,0);b.box('vidrio',W-.02,.008,W-.02,0,1.41,0);
+  b.box('caoba',W+.01,.1,W+.01,0,1.92,0);
+  cells.push({key:'0-0',x:0,y:.96,z:0,w:.4,h:.42,d:.36,row:0},{key:'1-0',x:0,y:1.416,z:0,w:.4,h:.42,d:.36,row:1});
+  return {w:W,h:1.97,d:W,cells};
+}
+function silla(b,x,z,ry){const s=Math.sin(ry),c=Math.cos(ry);
+  b.box('ebano',.4,.4,.4,x,.2,z,0,ry,0);b.box('tapiz',.46,.09,.46,x,.445,z,0,ry,0);b.box('tapiz',.46,.42,.08,x-s*.19,.7,z-c*.19,0,ry,0);}
+function mesa(p,b){
+  b.box('caoba',1.2,.05,.7,0,.75,0);b.box('ebano',.5,.725,.3,0,.3625,0);b.box('led',.44,.02,.24,0,.01,0);
+  silla(b,-.3,.72,PI);silla(b,.3,.72,PI);silla(b,0,-.72,0);
+  return {w:1.2,h:.92,d:1.9,cells:[]};
+}
+function caja(p,b){
+  b.box('ebano',1.6,1.02,.6,0,.51,0);b.box('caoba',1.66,.045,.66,0,1.045,0);b.box('caoba',1.4,.6,.01,0,.55,.302);b.box('laton',1.4,.012,.012,0,.86,.305);
+  return {w:1.66,h:1.07,d:.66,cells:[]};
+}
+function repisa(p,b){
+  const W=p.len;b.box('caoba',W,.055,.55,0,.765,0);b.box('ebano',W,.62,.05,0,.42,-.2);b.box('cobre',W,.1,.02,0,.05,-.2);
+  b.box('ebano',W*.3,1.9,.03,0,1.75,-.255);
+  return {w:W,h:.8,d:.55,cells:[]};
+}
+// Mueble de pared del video: gabinete bajo blanco, respaldo blanco con filetes cobre y repisas de vidrio
+function panelPared(p,b){
+  const cols=p.cols,rows=p.rows||3,cw=p.cellW||.6,ch=p.cellH||.62,D=.45,base=.9,W=cols*cw+.1,zona=rows*ch+.12,cells=[];
+  b.box('led',W-.06,.08,D-.08,0,.04,-.02);
+  b.box('blanco',W,base-.08,D,0,.08+(base-.08)/2,0);
+  b.box('cobre',W+.005,.025,D+.01,0,base+.0125,0);
+  for(let i=1;i<Math.round(W/.5);i++)b.box('junta',.005,base-.16,.004,-W/2+i*W/Math.round(W/.5),.08+(base-.08)/2,D/2+.001);
+  b.box('blanco',W,zona,.04,0,base+.025+zona/2,-D/2+.02);
+  for(let c=0;c<=cols;c++)b.box('cobre',.025,zona,.05,-W/2+.05+c*cw,base+.025+zona/2,-D/2+.045);
+  b.box('cobre',W,.04,.06,0,base+.025+zona,-D/2+.05);
+  for(let c=0;c<cols;c++){const x=-W/2+.05+cw*(c+.5);
+    for(let r=0;r<rows;r++){const y0=base+.03+r*ch;
+      if(r>0)b.box('vidrio',cw-.05,.01,.28,x,y0,-D/2+.19);
+      cells.push({key:r+'-'+c,x,y:y0+.008,z:-D/2+.2,w:cw-.08,h:ch-.06,d:.26,row:r});
+    }}
+  return {w:W,h:base+.065+zona,d:D,cells};
+}
+// Mostrador del video: zócalo blanco, cuerpo de vidrio con marco cobre y repisa intermedia
+function mostradorBlanco(p,b){
+  const n=p.n,cw=1.2,W=n*cw,D=.6,cells=[],y0=.4,y1=.96;
+  b.box('led',W-.06,.06,D-.08,0,.03,0);b.box('blanco',W,y0-.06,D,0,.06+(y0-.06)/2,0);
+  b.box('crema',W-.04,.008,D-.04,0,y0+.004,0);
+  b.box('vidrio',W,y1-y0,.008,0,(y0+y1)/2,D/2-.004);b.box('blanco',W,y1-y0,.02,0,(y0+y1)/2,-D/2+.01);
+  b.box('vidrio',.008,y1-y0,D,-W/2+.004,(y0+y1)/2,0);b.box('vidrio',.008,y1-y0,D,W/2-.004,(y0+y1)/2,0);
+  b.box('vidrio',W,.01,D,0,y1+.005,0);b.box('vidrio',W-.03,.008,D-.1,0,.68,0);
+  [[y0],[y1]].forEach(([y])=>{b.box('cobre',W,.018,.018,0,y,D/2-.009);b.box('cobre',W,.018,.018,0,y,-D/2+.009);b.box('cobre',.018,.018,D,-W/2+.009,y,0);b.box('cobre',.018,.018,D,W/2-.009,y,0);});
+  for(let i=0;i<=n;i++){const x=-W/2+i*cw+(i===0?.009:i===n?-.009:0);b.box('cobre',.018,y1-y0,.018,x,(y0+y1)/2,D/2-.009);b.box('cobre',.018,y1-y0,.018,x,(y0+y1)/2,-D/2+.009);}
+  for(let m=0;m<n;m++)for(let k=0;k<2;k++){const x=-W/2+m*cw+.3+k*.6;
+    cells.push({key:'0-'+(m*2+k),x,y:y0+.01,z:.02,w:.5,h:.25,d:.44,row:0},{key:'1-'+(m*2+k),x,y:.69,z:.02,w:.5,h:.25,d:.44,row:1});}
+  return {w:W,h:1.0,d:D,cells};
+}
+function escritorio(p,b){
+  b.box('blanco',1.7,.04,.6,0,.76,0);b.box('blanco',.45,.74,.56,-.6,.37,0);b.box('blanco',.04,.74,.56,.83,.37,0);
+  for(let k=0;k<3;k++){b.box('junta',.41,.005,.004,-.6,.2+k*.23,.282);b.box('cobre',.12,.014,.02,-.6,.31+k*.23,.29);}
+  return {w:1.7,h:.78,d:.6,cells:[]};
+}
+function estante(p,b){
+  b.box('blanco',1.8,2.3,.03,0,1.15,-.16);b.box('blanco',.03,2.3,.35,-.885,1.15,0);b.box('blanco',.03,2.3,.35,.885,1.15,0);b.box('blanco',.03,2.3,.35,0,1.15,0);
+  for(let k=0;k<6;k++)b.box('blanco',1.8,.03,.35,0,.02+k*.455,0);
+  return {w:1.8,h:2.3,d:.35,cells:[]};
+}
+const TIPOS={
+  pw5:{n:'Mueble de pared 5&nbsp;módulos',f:b=>panelPared({cols:5},b)},
+  pw3:{n:'Mueble de pared 3&nbsp;módulos',f:b=>panelPared({cols:3},b)},
+  pw1:{n:'Mueble de pared 1&nbsp;módulo',f:b=>panelPared({cols:1},b)},
+  alc:{n:'Estantería de vidrio alta',f:b=>panelPared({cols:1,rows:5,cellW:.9,cellH:.4},b)},
+  mv3:{n:'Mostrador vitrina 3,6&nbsp;m',f:b=>mostradorBlanco({n:3},b)},
+  mv2:{n:'Mostrador vitrina 2,4&nbsp;m',f:b=>mostradorBlanco({n:2},b)},
+  mv1:{n:'Mostrador vitrina 1,2&nbsp;m',f:b=>mostradorBlanco({n:1},b)},
+  escritorio:{n:'Escritorio de oficina',f:b=>escritorio({},b)},
+  estante:{n:'Estante de oficina',f:b=>estante({},b)},
+  torre:{n:'Vitrina torre',nuevo:1,f:b=>torre({},b)},
+  mesa:{n:'Mesa de atención',nuevo:1,f:b=>mesa({},b)},
+  caja:{n:'Mostrador de caja',nuevo:1,f:b=>caja({},b)},
+};
+
+/* ---------- Prendas: cada tipo se dibuja dentro de un compartimiento ---------- */
+const PRENDAS={vacio:'Vacío',collares:'Collares en busto',juegos:'Juegos en panel',cadenas:'Cadenas colgadas',pulseras:'Pulseras en rollo',anillos:'Anillos en bandeja'};
+function collar(b,x,y,z,R,rx){const arc=PI*1.3;b.add('oro',new THREE.TorusGeometry(R,.0055,5,18,arc),x,y,z,rx,0,-PI/2-arc/2);}
+const DIB={
+  collares(b,c){const n=Math.max(1,Math.round(c.w/.24)),hb=Math.min(c.h*.82,.3);
+    for(let i=0;i<n;i++){const x=c.x+(i-(n-1)/2)*c.w/n,g=new THREE.CylinderGeometry(.045,.078,hb,12);g.scale(1,1,.55);
+      b.add('velvet',g,x,c.y+hb/2,c.z-.03,-.14,0,0);
+      collar(b,x,c.y+hb*.86,c.z+.012,.048,-.14);collar(b,x,c.y+hb*.88,c.z+.02,.072,-.14);
+      b.add('oro',new THREE.SphereGeometry(.013,8,6),x,c.y+hb*.88-.085,c.z+.035);}},
+  juegos(b,c){const n=Math.max(1,Math.round(c.w/.3)),ph=Math.min(c.h*.84,.36);
+    for(let i=0;i<n;i++){const x=c.x+(i-(n-1)/2)*c.w/n,y=c.y+ph/2+.01,z=c.z-.02;
+      b.box('velvet',.23,ph,.012,x,y,z,-.24,0,0);
+      collar(b,x,y+ph*.22,z+.0,.062,-.24);collar(b,x,y+ph*.2,z+.004,.04,-.24);
+      [-.075,.075].forEach(dx=>{const g=new THREE.SphereGeometry(.011,8,6);g.scale(1,1.9,1);b.add('oro',g,x+dx,y-ph*.22,z+.03);});
+      b.add('oro',new THREE.TorusGeometry(.012,.004,5,12),x,y-ph*.3,z+.036,-.24,0,0);}},
+  cadenas(b,c){const top=c.y+c.h-.035;if(!c.rod)b.add('laton',new THREE.CylinderGeometry(.008,.008,c.w*.96,8),c.x,top,c.z,0,0,PI/2);
+    const n=Math.floor(c.w*.9/.028),alto=c.rod?c.h-.07:c.h-.06;
+    for(let i=0;i<n;i++){const x=c.x-c.w*.45+i*c.w*.9/(n-1||1),len=(.5+.45*Math.abs(Math.sin(i*1.37)))*alto;
+      b.add('oro',new THREE.CylinderGeometry(.0034,.0034,len,4),x,top-len/2,c.z+(i%2?.006:-.006));
+      if(i%3===0)b.add('oro',new THREE.SphereGeometry(.009,6,5),x,top-len,c.z);}},
+  pulseras(b,c){const filas=c.h>.38?2:1,Lr=c.w*.82;
+    for(let r=0;r<filas;r++){const y=c.y+.075+r*c.h*.46,z=c.z+(r?-.06:.05);
+      b.add('velvet',new THREE.CylinderGeometry(.033,.033,Lr,12),c.x,y,z,0,0,PI/2);
+      [-1,1].forEach(s=>b.box('velvet',.02,y-c.y,.05,c.x+s*(Lr/2+.012),c.y+(y-c.y)/2,z));
+      const n=Math.floor(Lr/.026);for(let i=0;i<n;i++)b.add('oro',new THREE.TorusGeometry(.041,.0058,5,14),c.x-Lr/2+.02+i*(Lr-.04)/(n-1||1),y,z,0,PI/2,0);}},
+  anillos(b,c){const t=.5,tw=c.w*.82,td=Math.min(c.d*.8,.26),cy=c.y+.085;
+    b.box('velvet',tw,.016,td,c.x,cy,c.z,t,0,0);
+    const cols=Math.floor(tw/.05),fil=Math.max(2,Math.floor(td/.07));
+    for(let i=0;i<cols;i++)for(let j=0;j<fil;j++){const u=-tw/2+.03+i*(tw-.06)/(cols-1||1),v=-td/2+.035+j*(td-.07)/(fil-1||1);
+      const y=cy-v*Math.sin(t)+.02*Math.cos(t),z=c.z+v*Math.cos(t)+.02*Math.sin(t);
+      b.add('oro',new THREE.TorusGeometry(.0095,.003,4,10),c.x+u,y,z,t-.5,0,0);
+      if((i+j)%2===0)b.add('oro',new THREE.SphereGeometry(.0055,6,4),c.x+u,y+.011,z);}},
+};
+function dibujarPrendas(owner){
+  limpiar(owner.cellGroup);const b=new B();
+  for(const c of owner.def.cells){let t=owner.st.cells[c.key];if(!t||t==='vacio')continue;if(c.rod)t='cadenas';DIB[t](b,c);}
+  b.into(owner.cellGroup);
+}
+function mezcla(owner){const st={};const tipo=owner.tipo;
+  owner.def.cells.forEach((c,i)=>{st[c.key]=c.rod?'cadenas':tipo&&tipo.startsWith('mv')?(c.row?(i%4<2?'anillos':'pulseras'):'juegos'):tipo==='torre'?'collares':tipo==='bahia'?(i%2?'juegos':'collares'):['pulseras','juegos','collares'][c.row%3];});
+  return st;}
+
+/* ---------- Local: piso, paredes, columnas y oficina ---------- */
+const local=new THREE.Group();scene.add(local);
+function plano(mat,w,h){return new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);}
+function muro(x1,z1,x2,z2,nx,nz,mat=M.lisa,y0=0,y1=L.alto){
+  const m=plano(mat,Math.hypot(x2-x1,z2-z1),y1-y0);m.position.set((x1+x2)/2,(y0+y1)/2,(z1+z2)/2);m.rotation.y=Math.atan2(nx,nz);local.add(m);return m;}
+(function construirLocal(){
+  const ZONAS=[[0,0,L.ancho,L.fondo],[0,L.fondo,L.xOf,L.zOf],[0,L.zOf,L.xRin,L.fondo901]]; // x0,z0,x1,z1
+  ZONAS.forEach(([x0,z0,x1,z1])=>{const w=x1-x0,d=z1-z0,t=texPiso.clone();t.needsUpdate=true;t.repeat.set(w/1.2,d/1.2);
+    const p=plano(new THREE.MeshStandardMaterial({map:t,roughness:.12,metalness:.05}),w,d);p.rotation.x=-PI/2;p.position.set(x0+w/2,0,z0+d/2);local.add(p);
+    const c=plano(M.techo,w,d);c.rotation.x=PI/2;c.position.set(x0+w/2,L.alto,z0+d/2);local.add(c);});
+  const base=new THREE.Mesh(new THREE.BoxGeometry(L.ancho+.5,.2,L.fondo901+.5),new THREE.MeshStandardMaterial({color:0x2a2724,roughness:.9}));base.position.set(L.ancho/2,-.105,L.fondo901/2);local.add(base);
+  // perímetro ciego: caras hacia adentro
+  muro(L.ancho,0,L.ancho,L.fondo,-1,0);muro(L.xOf,L.fondo,L.ancho,L.fondo,0,-1);muro(L.xOf,L.fondo,L.xOf,L.zOf,-1,0);
+  muro(L.xRin,L.zOf,L.xOf,L.zOf,0,-1);muro(L.xRin,L.zOf,L.xRin,L.fondo901,-1,0);muro(0,L.fondo901,L.xRin,L.fondo901,0,-1);
+  // dinteles sobre las dos fachadas
+  muro(0,.02,L.ancho,.02,0,1,M.lisa,2.85,L.alto);muro(.02,0,.02,L.fondo901,1,0,M.lisa,2.85,L.alto);
+  // tabique de la oficina con puerta de vidrio (x 2,0 a 2,9)
+  [[.3,2.0],[2.9,L.xOf]].forEach(([a,c])=>{muro(a,L.fondo,c,L.fondo,0,-1);muro(a,L.fondo+.01,c,L.fondo+.01,0,1);});
+  muro(2.0,L.fondo,2.9,L.fondo,0,-1,M.lisa,2.2,L.alto);muro(2.0,L.fondo+.01,2.9,L.fondo+.01,0,1,M.lisa,2.2,L.alto);
+  const b=new B();
+  b.box('vidrio',.88,2.18,.012,2.45,1.09,L.fondo);b.box('cobre',.03,.5,.03,2.12,1.1,L.fondo-.03);
+  PILARES.forEach(([a,c])=>b.box('pared',c-a,L.alto,.3,(a+c)/2,L.alto/2,.1));
+  PIL_O.forEach(([a,c])=>{const g=c-a>.5&&a>1&&c<12?.8:.3;b.box('pared',g,L.alto,c-a,g/2-.05,L.alto/2,(a+c)/2);});
+  b.box('pared',.3,L.alto,1.7,L.ancho-.1,L.alto/2,5.68); // columna A-D sobre el muro ciego
+  b.into(local);
+  const pts=[];for(let x=.9;x<L.ancho;x+=1.42)for(let z=.9;z<L.fondo;z+=1.3)pts.push([x,z]);
+  const focos=new THREE.InstancedMesh(new THREE.CircleGeometry(.06,14),M.led,pts.length),m4=new THREE.Matrix4(),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(PI/2,0,0));
+  pts.forEach(([x,z],k)=>{m4.compose(new THREE.Vector3(x,L.alto-.004,z),q,new THREE.Vector3(1,1,1));focos.setMatrixAt(k,m4);});local.add(focos);
+})();
+
+/* ---------- Exterior: piedra, vidrio alto, pérgolas y acera (según las fotos de fachada) ---------- */
+const gExt=new THREE.Group();scene.add(gExt);
+const gVallas=new THREE.Group();gVallas.visible=false;gExt.add(gVallas); // vallas de obra que hoy tapan los vanos
+(function construirExterior(){
+  const b=new B(),HE=4.9,HT=4.15; // alto de la piedra y del vidrio alto
+  PILARES.forEach(([a,c],i)=>{const w=c-a+.16;b.box('piedra',w,HE,.16,(a+c)/2,HE/2,-.13);b.box('led',.12,.42,.07,(a+c)/2,2.55,-.24);});
+  PIL_O.forEach(([a,c])=>{b.box('piedra',.16,HE,c-a+.16,-.13,HE/2,(a+c)/2);b.box('led',.07,.42,.12,-.24,2.55,(a+c)/2);});
+  b.box('piedra',.5,HE,.5,-.05,HE/2,-.05); // esquina
+  b.box('piedra',L.ancho+.2,HE-HT,.14,L.ancho/2,(HE+HT)/2,-.12);b.box('piedra',.14,HE-HT,L.fondo901+.2,-.12,(HE+HT)/2,L.fondo901/2);
+  BAHIAS.forEach(({a,c,lado})=>{const w=c-a,m=(a+c)/2,N=lado==='N',vol=2.3,y=HT+.05;
+    // vidrio alto oscuro
+    N?b.box('tinte',w,HT-2.87,.03,m,(HT+2.87)/2,-.03):b.box('tinte',.03,HT-2.87,w,-.03,(HT+2.87)/2,m);
+    // pérgola de lamas
+    const marco=(lx,lz,x,z)=>b.box('bronce',lx,.09,lz,x,y,z);
+    if(N){marco(w,.07,m,-vol);marco(w,.07,m,-.2);marco(.07,vol,a+.035,-vol/2-.1);marco(.07,vol,c-.035,-vol/2-.1);
+      for(let k=1;k<13;k++)b.box('bronce',w-.1,.025,.09,m,y,-.2-k*(vol-.2)/13,.5,0,0);}
+    else{marco(.07,w,-vol,m);marco(.07,w,-.2,m);marco(vol,.07,-vol/2-.1,a+.035);marco(vol,.07,-vol/2-.1,c-.035);
+      for(let k=1;k<13;k++)b.box('bronce',.09,.025,w-.1,-.2-k*(vol-.2)/13,y,m,0,0,-.5);}
+  });
+  b.box('cesped',9,.05,L.fondo901+8,-9.4,-.03,L.fondo901/2-1);
+  b.box('acera',L.ancho+10,.04,5,L.ancho/2-2.5,-.03,-2.5);b.box('acera',5,.04,L.fondo901+1,-2.5,-.03,L.fondo901/2+.5);
+  b.into(gExt);
+})();
+
+/* ---------- Estado ---------- */
+function estadoInicial(){
+  const it=(tipo,x,z,rot)=>({id:crypto.randomUUID?.()||String(Math.random()),tipo,x,z,rot,cells:null});
+  return {v:1,items:[
+    it('pw5',8.675,2.75,270),it('pw5',8.675,5.85,270),it('pw5',8.675,8.95,270),   // muro ciego
+    it('mv3',7.45,4.3,270),it('mv3',7.45,7.9,270),                                  // mostradores frente al muro ciego
+    it('pw5',6.7,10.775,180),it('pw3',4.1,10.775,180),                              // pared del fondo
+    it('mv3',5.3,9.85,180),                                                         // mostrador del fondo
+    it('alc',.95,10.775,180),                                                       // estantería de vidrio junto a la oficina
+    it('escritorio',3.9,12.75,180),it('estante',1.2,12.95,180),                     // oficina
+  ],bahias:BAHIAS_INI.map(k=>({k}))};
+}
+let estado, items=[], bahias=[], sel=null, modo='muebles', pincel='collares', alcance='celda';
+const gItems=new THREE.Group(),gBahias=new THREE.Group();scene.add(gItems,gBahias);
+const hist=[];let nAgregados=0;
+const clon=o=>JSON.parse(JSON.stringify(o));
+function recordar(){hist.push(JSON.stringify(serializar()));if(hist.length>40)hist.shift();}
+function serializar(){return {v:1,items:items.map(o=>({id:o.st.id,tipo:o.tipo,x:+o.st.x.toFixed(3),z:+o.st.z.toFixed(3),rot:o.st.rot,cells:o.st.cells})),bahias:bahias.map(o=>({k:o.st.k,valla:o.st.valla||null,cells:o.st.cells}))};}
+let picks=[];
+function crearOwner(tipo,def,st,group){
+  const o={tipo,def,st,group,cellGroup:new THREE.Group()};group.add(cellGroup(o));
+  for(const c of def.cells){const p=new THREE.Mesh(new THREE.BoxGeometry(c.w+.06,c.h+.03,c.d+.1));p.position.set(c.x,c.y+c.h/2,c.z);p.visible=false;p.userData={owner:o,cell:c};group.add(p);picks.push(p);}
+  if(!st.cells)st.cells=mezcla(o);
+  dibujarPrendas(o);return o;
+}
+function cellGroup(o){return o.cellGroup;}
+function crearItem(st){
+  const g=new THREE.Group(),b=new B(),def=TIPOS[st.tipo].f(b);b.into(g);
+  const o=crearOwner(st.tipo,def,st,g);g.userData.owner=o;colocar(o);gItems.add(g);items.push(o);return o;
+}
+function colocar(o){o.group.position.set(o.st.x,0,o.st.z);o.group.rotation.y=rad(o.st.rot);}
+function crearBahia(st,i){
+  const {a,c,lado}=BAHIAS[i],bw=c-a,g=new THREE.Group(),b=new B(),cells=[];
+  if(st.k==='puerta'){
+    b.box('cobre',.07,2.85,.1,-bw/2+.035,1.425,.05);b.box('cobre',.07,2.85,.1,bw/2-.035,1.425,.05);b.box('cobre',bw,.09,.1,0,2.8,.05);
+    if(bw>1.6)b.box('cobre',.05,2.75,.06,0,1.375,.05);
+    b.box('vidrio',bw-.14,2.75,.012,0,1.375,.05);(bw>1.6?[-.12,.12]:[bw/2-.2]).forEach(x=>b.box('laton',.03,.9,.03,x,1.15,.1));
+  }else if(st.k==='esmerilado'){
+    b.box('esmeril',bw,2.85,.014,0,1.425,.04);b.box('cobre',bw,.04,.05,0,2.84,.04);for(let k=1;k<Math.round(bw/.9);k++)b.box('junta',.012,2.8,.02,-bw/2+k*bw/Math.round(bw/.9),1.4,.04);
+  }else if(st.k==='muro'){
+    b.box('pared',bw,L.alto,.08,0,L.alto/2,.04);
+  }else{
+    b.box('vidrio',bw,2.05,.012,0,1.825,.04);b.box('cobre',bw,.05,.06,0,2.83,.04);
+    b.box('granito',bw,.8,.05,0,.4,.02);b.box('ebano',bw,.74,.5,0,.37,.3);b.box('caoba',bw,.06,.56,0,.77,.31);
+    const n=Math.max(1,Math.round(bw/.8));for(let k=0;k<n;k++)cells.push({key:'0-'+k,x:-bw/2+bw/n*(k+.5),y:.802,z:.3,w:bw/n-.08,h:.5,d:.42,row:0});
+  }
+  b.into(g);
+  if(st.k==='puerta'){const rw=Math.min(bw*.8,2.6),r=new THREE.Mesh(new THREE.PlaneGeometry(rw,rw*200/1024),new THREE.MeshBasicMaterial({map:texRotulo(),transparent:true,toneMapped:false}));r.userData.propio=true;r.position.set(0,3.5,-.07);r.rotation.y=PI;g.add(r);}
+  if(lado==='N')g.position.set((a+c)/2,0,0);else{g.position.set(0,0,(a+c)/2);g.rotation.y=PI/2;}
+  gBahias.add(g);
+  if(st.k!=='vitrina')st.cells={};
+  const o=crearOwner('bahia',{cells},st,g);bahias.push(o);return o;
+}
+const ORO='#d9b25a',SERIF="Marcellus, Georgia, 'Times New Roman', serif";
+function espaciado(g,txt,cx,y,px,sep){g.font=px+'px '+SERIF;const ws=[...txt].map(ch=>g.measureText(ch).width),tot=ws.reduce((a,b)=>a+b,0)+sep*(txt.length-1);let x=cx-tot/2;g.textAlign='left';[...txt].forEach((ch,i)=>{g.fillText(ch,x,y);x+=ws[i]+sep;});return tot;}
+function arcos(g,W,y,h,n){g.lineWidth=3;g.globalAlpha=.75;const cw=W/n;for(let i=0;i<n;i++){const x=i*cw;g.beginPath();g.moveTo(x+cw*.12,y+h);g.lineTo(x+cw*.12,y+cw*.38);g.arc(x+cw/2,y+cw*.38,cw*.38,PI,0);g.lineTo(x+cw*.88,y+h);g.stroke();}g.globalAlpha=1;}
+// Valla con diseño propio de Goldzco: nombre, filete y los arcos del piso del local
+function texValla(tono,w,h){const H=1024,W=Math.round(H*w/h);return lienzo(W,H,(g)=>{
+  if(tono==='ambar'){const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#3a2413');gr.addColorStop(.45,'#b97c24');gr.addColorStop(1,'#2e1c10');g.fillStyle=gr;}else g.fillStyle=tono==='verde'?'#2f4a33':'#1f2a44';
+  g.fillRect(0,0,W,H);g.strokeStyle=ORO;g.fillStyle=tono==='ambar'?'#f3e3bd':ORO;g.lineWidth=3;g.strokeRect(34,34,W-68,H-68);
+  g.textBaseline='middle';
+  if(W>=620){const px=Math.min(W*.13,150);espaciado(g,'GOLDZCO',W/2,H*.4,px,px*.22);
+    g.fillRect(W/2-90,H*.4+px*.72,180,3);
+    g.font='500 '+Math.round(px*.2)+'px Manrope, system-ui, sans-serif';g.textAlign='center';g.fillText('J O Y E R Í A',W/2,H*.4+px*1.12);
+    g.save();g.translate(34,0);arcos(g,W-68,H-34-170,170,Math.max(6,Math.round((W-68)/120)));g.restore();}
+  else{const r=W*.27;g.lineWidth=4;g.beginPath();g.arc(W/2,H*.3,r,0,PI*2);g.stroke();g.lineWidth=2;g.beginPath();g.arc(W/2,H*.3,r-12,0,PI*2);g.stroke();
+    g.font=Math.round(r*1.25)+'px '+SERIF;g.textAlign='center';g.fillText('G',W/2,H*.3+r*.06);
+    const px=Math.min((W-110)/6.2,64);espaciado(g,'GOLDZCO',W/2,H*.55,px,px*.14);
+    g.save();g.translate(34,0);arcos(g,W-68,H-34-150,150,3);g.restore();}
+});}
+function texRotulo(){return lienzo(1024,200,(g,W,H)=>{g.clearRect(0,0,W,H);g.fillStyle=ORO;g.textBaseline='middle';espaciado(g,'GOLDZCO',W/2,H*.52,128,30);});}
+function pintarVallas(){limpiar(gVallas);const v=new B(),caras=[];
+  bahias.forEach((o,i)=>{const t=o.st.valla||VALLAS_INI[i];if(t==='no'||o.st.k==='puerta')return;const {a,c,lado}=BAHIAS[i],w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(t,w,h,.05,m,y,-.245):v.box(t,.05,h,w,-.245,y,m);
+    const cara=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshStandardMaterial({map:texValla(t,w,h),roughness:.8}));cara.userData.propio=true;
+    if(lado==='N'){cara.position.set(m,y,-.273);cara.rotation.y=PI;}else{cara.position.set(-.273,y,m);cara.rotation.y=-PI/2;}caras.push(cara);});
+  v.into(gVallas);caras.forEach(c=>gVallas.add(c));}
+function cargar(e){
+  seleccionar(null);
+  [gItems,gBahias].forEach(g=>{limpiar(g);});items=[];bahias=[];picks=[];
+  e.bahias=BAHIAS.map((_,i)=>e.bahias[i]||{k:BAHIAS_INI[i]});
+  estado=e;e.items.forEach(crearItem);e.bahias.forEach(crearBahia);
+  pintarBahias();pintarVallas();autoguardar();
+}
+function autoguardar(){try{localStorage.setItem('goldzco-local2-actual',JSON.stringify(serializar()));}catch(e){}}
+
+/* ---------- Selección y edición de muebles ---------- */
+const caja3=new THREE.BoxHelper(new THREE.Object3D(),0xffd45e);caja3.visible=false;scene.add(caja3);
+function seleccionar(o){sel=o;caja3.visible=!!o;if(o){caja3.setFromObject(o.group);}pintarSel();}
+function pintarSel(){
+  const el=$('#sel');
+  if(!sel){el.innerHTML='<span>Haz clic en un mueble para seleccionarlo y arrástralo por el piso.</span>';}
+  else{const d=sel.def,f=n=>n.toFixed(2).replace('.',',');
+    el.innerHTML=`<b>${TIPOS[sel.tipo].n}</b><span>${f(d.w)} m ancho × ${f(d.d)} m fondo × ${f(d.h)} m alto</span><span>A ${f(sel.st.x)} m del muro oeste y ${f(sel.st.z)} m de la fachada</span>`;}
+  ['#b-girar','#b-girar15','#b-pared','#b-duplicar','#b-eliminar'].forEach(s=>$(s).disabled=!sel);
+}
+function mover(o,x,z){o.st.x=Math.min(L.ancho,Math.max(0,Math.round(x*20)/20));o.st.z=Math.min(L.fondo901,Math.max(0,Math.round(z*20)/20));colocar(o);caja3.setFromObject(o.group);pintarSel();}
+function girar(g){if(!sel)return;recordar();sel.st.rot=(sel.st.rot+g)%360;colocar(sel);caja3.setFromObject(sel.group);autoguardar();}
+function aPared(){if(!sel)return;recordar();const s=sel.st,d=sel.def.d/2;
+  const op=[[s.z,()=>{s.rot=0;s.z=d+.3;}],[L.fondo-s.z,()=>{s.rot=180;s.z=L.fondo-d;}],[s.x,()=>{s.rot=90;s.x=d;}],[L.ancho-s.x,()=>{s.rot=270;s.x=L.ancho-d;}]];
+  op.sort((a,b)=>a[0]-b[0])[0][1]();colocar(sel);caja3.setFromObject(sel.group);pintarSel();autoguardar();}
+function agregar(tipo){recordar();const t=controls.target;const o=crearItem({id:crypto.randomUUID?.()||String(Math.random()),tipo,x:Math.min(6,Math.max(1.5,Math.round(t.x*10)/10+(nAgregados++%5)*.5-1)),z:Math.min(8,Math.max(2.4,Math.round(t.z*10)/10)),rot:180,cells:null});seleccionar(o);autoguardar();aviso(TIPOS[tipo].n.replace(/&nbsp;/g,' ')+' agregado. Arrástralo a su lugar.');}
+function duplicar(){if(!sel)return;recordar();const s=clon(sel.st);s.id=String(Math.random());s.x=Math.min(L.ancho-.5,s.x+.6);s.z=Math.max(.5,s.z-.6);seleccionar(crearItem(s));autoguardar();}
+function eliminar(){if(!sel)return;recordar();const o=sel;seleccionar(null);limpiar(o.group);gItems.remove(o.group);items=items.filter(i=>i!==o);picks=picks.filter(p=>p.userData.owner!==o);autoguardar();}
+function deshacer(){const s=hist.pop();if(!s){aviso('No hay nada que deshacer.');return;}cargar(JSON.parse(s));}
+
+/* ---------- Prendas ---------- */
+function aplicar(o,cell){
+  recordar();
+  const cs=alcance==='celda'?[cell]:alcance==='fila'?o.def.cells.filter(c=>c.row===cell.row):o.def.cells;
+  cs.forEach(c=>o.st.cells[c.key]=pincel);dibujarPrendas(o);autoguardar();
+}
+function todos(fn){recordar();[...items,...bahias].forEach(o=>{fn(o);dibujarPrendas(o);});autoguardar();}
+
+/* ---------- Ratón / táctil ---------- */
+const ray=new THREE.Raycaster(),pt=new THREE.Vector2(),pisoPl=new THREE.Plane(new THREE.Vector3(0,1,0),0),tmp=new THREE.Vector3();
+const resalte=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0xffd45e,transparent:true,opacity:.28,depthTest:false}));resalte.visible=false;resalte.renderOrder=5;scene.add(resalte);
+let arrastre=null,abajo=null;
+function rayo(e){const r=canvas.getBoundingClientRect();pt.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pt,camera);}
+function itemBajo(){const h=ray.intersectObjects(gItems.children,true).find(h=>h.object.visible);if(!h)return null;let o=h.object;while(o&&!o.userData.owner)o=o.parent;return o?o.userData.owner:null;}
+function celdaBajo(){const h=ray.intersectObjects(picks,false)[0];return h?h.object:null;}
+canvas.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;abajo={x:e.clientX,y:e.clientY};
+  if(modo!=='muebles')return;rayo(e);const o=itemBajo();
+  if(o){seleccionar(o);if(ray.ray.intersectPlane(pisoPl,tmp)){arrastre={o,dx:o.st.x-tmp.x,dz:o.st.z-tmp.z,movido:false};controls.enabled=false;canvas.setPointerCapture(e.pointerId);}}
+});
+canvas.addEventListener('pointermove',e=>{
+  rayo(e);
+  if(arrastre){if(ray.ray.intersectPlane(pisoPl,tmp)){if(!arrastre.movido){recordar();arrastre.movido=true;}mover(arrastre.o,tmp.x+arrastre.dx,tmp.z+arrastre.dz);}return;}
+  if(modo==='prendas'&&!abajo){const p=celdaBajo();resalte.visible=!!p;if(p){p.updateWorldMatrix(true,false);const g=p.geometry.parameters;resalte.matrixAutoUpdate=false;resalte.matrix.copy(p.matrixWorld).scale(new THREE.Vector3(g.width,g.height,g.depth));canvas.style.cursor='pointer';}else canvas.style.cursor='';}
+  else if(modo==='muebles'&&!abajo)canvas.style.cursor=itemBajo()?'grab':'';
+});
+canvas.addEventListener('pointerup',e=>{
+  const quieto=abajo&&Math.hypot(e.clientX-abajo.x,e.clientY-abajo.y)<5;abajo=null;
+  if(arrastre){if(arrastre.movido)autoguardar();arrastre=null;controls.enabled=true;return;}
+  if(!quieto||e.button!==0)return;rayo(e);
+  if(modo==='muebles'){if(!itemBajo())seleccionar(null);}
+  else{const p=celdaBajo();if(p)aplicar(p.userData.owner,p.userData.cell);}
+});
+canvas.addEventListener('pointercancel',()=>{arrastre=null;abajo=null;controls.enabled=true;});
+addEventListener('keydown',e=>{
+  if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();deshacer();}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();duplicar();}
+  else if(e.key==='r'||e.key==='R')girar(90);
+  else if(e.key==='Delete'||e.key==='Backspace')eliminar();
+});
+
+/* ---------- Vistas ---------- */
+const VISTAS={
+  general:[[4.6,27,-7.5],[4.6,.6,6.6],46],
+  planta:[[4.45,29,6.96],[4.45,0,6.95],46],
+  entrada:[[6.5,1.62,.9],[6.2,1.15,10],68],
+  pasillo:[[1.3,1.62,1.3],[8.2,1.0,9.5],66],
+  vitrinas:[[4.0,1.5,5.85],[8.9,1.4,5.85],60],
+  mostrador:[[4.6,1.62,4.2],[4.2,1.3,11],66],
+  fachada:[[4.5,1.7,-11],[4.5,2.2,0],58],
+  lateral:[[-10,1.7,-6],[2,2.1,5],58],
+};
+function exterior(v){gExt.visible=v;$('#chk-ext').checked=v;}
+function vista(k){const [p,t,f]=VISTAS[k];camera.position.set(...p);controls.target.set(...t);camera.fov=f;camera.updateProjectionMatrix();controls.update();}
+
+/* ---------- Interfaz ---------- */
+let tAviso;function aviso(t){const a=$('#aviso');a.textContent=t;a.style.display='block';clearTimeout(tAviso);tAviso=setTimeout(()=>a.style.display='none',3200);}
+function setModo(m){modo=m;$('#modo-muebles').setAttribute('aria-pressed',m==='muebles');$('#modo-prendas').setAttribute('aria-pressed',m==='prendas');$('#sec-muebles').hidden=m!=='muebles';$('#sec-prendas').hidden=m!=='prendas';resalte.visible=false;if(m==='prendas')seleccionar(null);
+  $('#ayuda').textContent=m==='muebles'?'Arrastrar un mueble: moverlo · Arrastrar el fondo: girar la vista · Rueda: acercar · Clic derecho o dos dedos: desplazar':'Clic en un compartimiento: colocar el tipo de exhibición elegido · Arrastrar: girar la vista · Rueda: acercar';}
+$('#modo-muebles').onclick=()=>setModo('muebles');$('#modo-prendas').onclick=()=>setModo('prendas');
+$('#catalogo').innerHTML=Object.entries(TIPOS).map(([k,t])=>`<button data-t="${k}"${t.nuevo?' class="nuevo"':''}>${t.n}</button>`).join('');
+$('#catalogo').onclick=e=>{const b=e.target.closest('button');if(b)agregar(b.dataset.t);};
+$('#paleta').innerHTML=Object.entries(PRENDAS).map(([k,n])=>`<button data-p="${k}" aria-pressed="${k===pincel}">${n}</button>`).join('');
+$('#paleta').onclick=e=>{const b=e.target.closest('button');if(!b)return;pincel=b.dataset.p;$$('#paleta button').forEach(x=>x.setAttribute('aria-pressed',x===b));};
+$$('[data-alc]').forEach(b=>b.onclick=()=>{alcance=b.dataset.alc;$$('[data-alc]').forEach(x=>x.setAttribute('aria-pressed',x===b));});
+$('#b-girar').onclick=()=>girar(90);$('#b-girar15').onclick=()=>girar(15);$('#b-pared').onclick=aPared;$('#b-duplicar').onclick=duplicar;$('#b-eliminar').onclick=eliminar;$('#b-deshacer').onclick=deshacer;$('#b-deshacer2').onclick=deshacer;
+$('#b-llenar').onclick=()=>todos(o=>o.def.cells.forEach(c=>o.st.cells[c.key]=pincel));
+$('#b-mezcla').onclick=()=>todos(o=>o.st.cells=mezcla(o));
+$('#b-vaciar').onclick=()=>todos(o=>o.st.cells={});
+$('#vistas').onclick=e=>{const b=e.target.closest('button');if(b)vista(b.dataset.v);};
+function pintarBahias(){
+  let nN=0,nO=0;
+  $('#bahias').innerHTML=bahias.map((o,i)=>{const {a,c,lado}=BAHIAS[i],nom=lado==='N'?'Fachada este '+(++nN):'Fachada norte '+(++nO);
+    const op=(v,t)=>`<option value="${v}"${o.st.k===v?' selected':''}>${t}</option>`;
+    return `<label for="bah${i}">${nom} · ${(c-a).toFixed(2).replace('.',',')} m</label><select id="bah${i}" data-i="${i}">${op('esmerilado','Vidrio esmerilado')}${op('vitrina','Vitrina a la calle')}${op('puerta','Puerta')}${op('muro','Cerrado por dentro')}</select><select id="val${i}" data-v="${i}" aria-label="Valla de ${nom}"${o.st.k==='puerta'?' disabled':''}>${o.st.k==='puerta'?'<option>Entrada libre</option>':''}${(o.st.k==='puerta'?[]:Object.entries(VALLAS)).map(([k,t])=>`<option value="${k}"${(o.st.valla||VALLAS_INI[i])===k?' selected':''}>${t}</option>`).join('')}</select>`;}).join('');
+}
+$('#chk-ext').onchange=e=>exterior(e.target.checked);
+$('#chk-vallas').onchange=e=>{gVallas.visible=e.target.checked;if(e.target.checked)exterior(true);};
+$('#bahias').onchange=e=>{recordar();if(e.target.dataset.v!==undefined){bahias[+e.target.dataset.v].st.valla=e.target.value;pintarVallas();autoguardar();return;}
+  const i=+e.target.dataset.i,s=serializar();s.bahias[i]={k:e.target.value,valla:s.bahias[i].valla,cells:null};cargar(s);};
+
+/* versiones */
+function leerVers(){try{return JSON.parse(localStorage.getItem('goldzco-local2-versiones')||'{}');}catch(e){return {};}}
+function escVers(v){try{localStorage.setItem('goldzco-local2-versiones',JSON.stringify(v));return true;}catch(e){aviso('Este navegador no permitió guardar. Usa Exportar archivo.');return false;}}
+function pintarVers(){const v=leerVers(),ks=Object.keys(v);
+  $('#versiones').innerHTML=ks.length?ks.map(k=>`<div class="ver"><span></span><button data-c="1">Abrir</button><button data-b="1">Borrar</button></div>`).join(''):'<p class="nota">Todavía no hay versiones guardadas.</p>';
+  $$('#versiones .ver').forEach((d,i)=>{d.dataset.k=ks[i];d.querySelector('span').textContent=ks[i];});}
+$('#versiones').onclick=e=>{const b=e.target.closest('button');if(!b)return;const k=b.closest('.ver').dataset.k,v=leerVers();
+  if(b.dataset.c){recordar();cargar(clon(v[k]));aviso('Versión abierta: '+k);}else{delete v[k];escVers(v);pintarVers();}};
+$('#b-guardar').onclick=()=>{const n=$('#ver-nombre').value.trim()||('Versión '+(Object.keys(leerVers()).length+1));const v=leerVers();v[n]=serializar();if(escVers(v)){pintarVers();$('#ver-nombre').value='';aviso('Guardada: '+n);}};
+$('#b-reset').onclick=()=>{recordar();cargar(estadoInicial());aviso('Distribución inicial restaurada. Puedes deshacer.');};
+$('#b-importar').onclick=()=>$('#archivo').click();
+$('#archivo').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const s=JSON.parse(await f.text());if(!s.items||!s.bahias||s.items.some(i=>!TIPOS[i.tipo]))throw 0;recordar();cargar(s);aviso('Archivo importado.');}catch(err){aviso('Ese archivo no es una distribución de este local.');}e.target.value='';};
+// guardar archivos: solo si la página publicada lo permite
+(async()=>{let dl=null;try{dl=window.claude&&await window.claude.use('downloads');}catch(e){}
+  if(!dl)return;
+  const guardar=async(filename,data)=>{try{await dl.save({filename,data});}catch(err){if(err&&err.code!=='declined')aviso('No se pudo guardar el archivo.');}};
+  $('#b-png').hidden=false;$('#b-exportar').hidden=false;
+  $('#b-png').onclick=()=>{const v=caja3.visible,r=resalte.visible;caja3.visible=resalte.visible=false;renderer.render(scene,camera);canvas.toBlob(b=>{caja3.visible=v;resalte.visible=r;if(b)guardar('goldzco-local2-vista.png',b);},'image/png');};
+  $('#b-exportar').onclick=()=>guardar('goldzco-local2-distribucion.json',JSON.stringify(serializar(),null,1));
+})();
+
+/* ---------- Arranque ---------- */
+function ajustar(){const w=cont.clientWidth,h=cont.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+new ResizeObserver(ajustar).observe(cont);ajustar();
+let inicial=estadoInicial();
+try{const s=JSON.parse(localStorage.getItem('goldzco-local2-actual')||'null');if(s&&s.items&&s.bahias&&s.items.every(i=>TIPOS[i.tipo]))inicial=s;}catch(e){}
+cargar(inicial);pintarVers();setModo('muebles');vista('general');
+if(document.fonts&&document.fonts.load)document.fonts.load("100px Marcellus").then(()=>cargar(serializar())).catch(()=>{});
+window.__app={vista,setModo,serializar,items:()=>items};
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
+</script>
+</body>
+</html>
