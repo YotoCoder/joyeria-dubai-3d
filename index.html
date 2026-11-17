@@ -138,7 +138,7 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
     <p class="nota">Frente: del 1 en la esquina al 5 junto a la escalera. Lateral: del 1 en la esquina hacia el fondo.</p>
     <div class="bahia" id="bahias"></div>
     <label class="chk"><input type="checkbox" id="chk-ext" checked> Mostrar el exterior (piedra, pérgolas, vidrio alto)</label>
-    <label class="chk"><input type="checkbox" id="chk-vallas" checked> Mostrar las vallas de obra</label>
+    <label class="chk"><input type="checkbox" id="chk-vallas"> Mostrar las vallas de obra</label>
   </section>
 
   <section>
@@ -441,7 +441,7 @@ function muro(x1,z1,x2,z2,nx,nz,mat=M.pared,y0=0,y1=L.alto){
 
 /* ---------- Exterior: piedra, vidrio alto, pérgolas y acera (según las fotos de fachada) ---------- */
 const gExt=new THREE.Group();scene.add(gExt);
-const gVallas=new THREE.Group();gExt.add(gVallas); // vallas de obra que hoy tapan los vanos
+const gVallas=new THREE.Group();gVallas.visible=false;gExt.add(gVallas); // vallas de obra que hoy tapan los vanos
 (function construirExterior(){
   const b=new B(),HE=4.9,HT=4.15; // alto de la piedra y del vidrio alto
   PILARES.forEach(([a,c],i)=>{const w=c-a+.16;b.box('piedra',w,HE,.16,(a+c)/2,HE/2,-.13);b.box('led',.12,.42,.07,(a+c)/2,2.55,-.24);});
