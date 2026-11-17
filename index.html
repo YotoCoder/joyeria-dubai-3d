@@ -137,6 +137,7 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
     <p class="nota">Frente: del 1 en la esquina al 5 junto a la escalera. Lateral: del 1 en la esquina hacia el fondo.</p>
     <div class="bahia" id="bahias"></div>
     <label class="chk"><input type="checkbox" id="chk-ext"> Mostrar el exterior (piedra, pérgolas, vidrio alto)</label>
+    <label class="chk"><input type="checkbox" id="chk-vallas" checked> Vallas de obra sobre los vanos</label>
   </section>
 
   <section>
@@ -236,6 +237,7 @@ const texPiedra=lienzo(256,1024,(g,w,h)=>{ // piedra en hiladas: caliza crema co
   const r=rnd(11),n=16;for(let i=0;i<n;i++){const y=i*h/n;g.fillStyle=i%5===2?'#dfb67c':i%5===4?'#e6caa0':'#ead9b8';g.fillRect(0,y,w,h/n);
     for(let k=0;k<60;k++){g.fillStyle=`rgba(${r()>.5?255:120},${r()>.5?240:90},${r()>.5?210:50},${r()*.06})`;g.fillRect(r()*w,y+r()*h/n,6+r()*40,2+r()*5);}
     g.fillStyle='rgba(90,60,30,.35)';g.fillRect(0,y,w,2);}});
+const texAmbar=lienzo(8,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#3a2413');gr.addColorStop(.45,'#c98a2a');gr.addColorStop(1,'#2e1c10');g.fillStyle=gr;g.fillRect(0,0,w,h);});
 const texCaoba=lienzo(512,256,(g,w,h)=>{const r=rnd(3);g.fillStyle='#4a1a11';g.fillRect(0,0,w,h);
   for(let i=0;i<260;i++){g.strokeStyle=`rgba(${r()>.5?120:20},${r()>.5?45:8},${14},${.05+r()*.13})`;g.lineWidth=.6+r()*2.4;const y=r()*h;g.beginPath();g.moveTo(0,y);g.bezierCurveTo(w*.3,y+(r()-.5)*14,w*.7,y+(r()-.5)*14,w,y+(r()-.5)*8);g.stroke();}});
 
@@ -258,6 +260,9 @@ const M={
   granito:new THREE.MeshStandardMaterial({color:0x2b2623,roughness:.35}),
   tinte:new THREE.MeshStandardMaterial({color:0x1a1210,roughness:.06,metalness:.5}),
   bronce:new THREE.MeshStandardMaterial({color:0x4a4038,roughness:.5,metalness:.6}),
+  marino:new THREE.MeshStandardMaterial({color:0x1f2a44,roughness:.8}),
+  verde:new THREE.MeshStandardMaterial({color:0x2f4a33,roughness:.8}),
+  ambar:new THREE.MeshStandardMaterial({map:texAmbar,roughness:.8}),
   acera:new THREE.MeshStandardMaterial({color:0x9c9891,roughness:.9}),
   tapiz:new THREE.MeshStandardMaterial({color:0xd9c9a8,roughness:.8}),
 };
@@ -391,7 +396,7 @@ function mezcla(owner){const st={};const tipo=owner.tipo;
   owner.def.cells.forEach((c,i)=>{st[c.key]=c.rod?'cadenas':tipo&&tipo.startsWith('most')?(i%2?'pulseras':'anillos'):tipo==='torre'?'collares':tipo==='bahia'?(i%2?'juegos':'collares'):['pulseras','juegos','collares'][c.row%3];});
   return st;}
 
-/* ---------- Local: piso, paredes y columnas ---------- */
+/* ---------- Local: piso, paredes, columnas, bóveda ---------- */
 const local=new THREE.Group();scene.add(local);
 function plano(mat,w,h){return new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);}
 function muro(x1,z1,x2,z2,nx,nz,mat=M.pared,y0=0,y1=L.alto){
@@ -409,12 +414,20 @@ function muro(x1,z1,x2,z2,nx,nz,mat=M.pared,y0=0,y1=L.alto){
   muro(.02,0,.02,L.fondo901,1,0,M.lisa,2.85,L.alto);muro(0,L.fondo901,L.x901,L.fondo901,0,-1);muro(L.x901,L.fondo,L.x901,L.fondo901,-1,0);
   muro(L.x901,L.fondo,L.ancho,L.fondo,0,-1);muro(L.ancho,0,L.ancho,L.fondo,-1,0);
   muro(0,.02,L.ancho,.02,0,1,M.lisa,2.85,L.alto);
-  // tabique del fondo (cuarto cerrado)
-  muro(0,L.fondo,L.x901,L.fondo,0,-1);
+  // tabique de la bóveda (puerta entre x = 1,5 y 2,5)
+  muro(0,L.fondo,1.5,L.fondo,0,-1);muro(2.5,L.fondo,L.x901,L.fondo,0,-1);muro(1.5,L.fondo,2.5,L.fondo,0,-1,M.lisa,2.1,L.alto);
+  muro(0,L.fondo+.01,1.5,L.fondo+.01,0,1,M.acero);muro(2.5,L.fondo+.01,L.x901,L.fondo+.01,0,1,M.acero);
   const b=new B();
   COLUMNAS.forEach(([x,z0,z1])=>b.box('pared',.7,L.alto,z1-z0,x,L.alto/2,(z0+z1)/2));
   PILARES.forEach(([a,c])=>b.box('pared',c-a,L.alto,.3,(a+c)/2,L.alto/2,.1));
   PIL_O.forEach(([a,c])=>b.box('pared',.3,L.alto,c-a,.1,L.alto/2,(a+c)/2));
+  // bóveda: marco, hoja abierta, reja y estantes
+  b.box('acero',.1,2.15,.22,1.45,1.075,L.fondo);b.box('acero',.1,2.15,.22,2.55,1.075,L.fondo);b.box('acero',1.2,.12,.22,2,2.16,L.fondo);
+  b.box('acero',.09,2.0,.98,1.4,1.0,L.fondo-.6);b.box('laton',.03,.12,.12,1.34,1.05,L.fondo-.9);
+  for(let i=0;i<9;i++)b.add('acero',new THREE.CylinderGeometry(.012,.012,2.05,6),1.55+i*.115,1.03,L.fondo+.75);
+  b.box('acero',1.0,.04,.03,2,2.05,L.fondo+.75);b.box('acero',1.0,.04,.03,2,.06,L.fondo+.75);
+  [[.25,8.6,.45,2.4],[3.45,8.6,.45,2.4]].forEach(([x,z,w,d])=>{for(let k=0;k<5;k++)b.box('acero',w,.03,d,x,.3+k*.45,z);b.box('acero',w,.9,d,x,.45,z);});
+  for(let k=0;k<5;k++)b.box('acero',2.6,.03,.45,1.85,.3+k*.45,9.8);
   b.into(local);
   // techo (solo visible desde adentro) con focos
   const techo=plano(M.techo,L.ancho,L.fondo);techo.rotation.x=PI/2;techo.position.set(L.ancho/2,L.alto,L.fondo/2);local.add(techo);
@@ -425,6 +438,7 @@ function muro(x1,z1,x2,z2,nx,nz,mat=M.pared,y0=0,y1=L.alto){
 
 /* ---------- Exterior: piedra, vidrio alto, pérgolas y acera (según las fotos de fachada) ---------- */
 const gExt=new THREE.Group();gExt.visible=false;scene.add(gExt);
+const gVallas=new THREE.Group();gExt.add(gVallas); // vallas de obra que hoy tapan los vanos
 (function construirExterior(){
   const b=new B(),HE=4.9,HT=4.15; // alto de la piedra y del vidrio alto
   PILARES.forEach(([a,c],i)=>{const w=c-a+.16;b.box('piedra',w,HE,.16,(a+c)/2,HE/2,-.13);b.box('led',.12,.42,.07,(a+c)/2,2.55,-.24);});
@@ -443,6 +457,9 @@ const gExt=new THREE.Group();gExt.visible=false;scene.add(gExt);
   });
   b.box('acera',L.ancho+10,.04,5,L.ancho/2-2.5,-.03,-2.5);b.box('acera',5,.04,L.fondo901+1,-2.5,-.03,L.fondo901/2+.5);
   b.into(gExt);
+  const v=new B(),tonos=['ambar','marino','marino','marino','ambar','marino','verde','verde'];
+  BAHIAS.forEach(({a,c,lado},i)=>{const w=c-a+.1,m=(a+c)/2,h=2.5,y=.35+h/2;lado==='N'?v.box(tonos[i],w,h,.05,m,y,-.245):v.box(tonos[i],.05,h,w,-.245,y,m);});
+  v.into(gVallas);
 })();
 
 /* ---------- Estado ---------- */
@@ -602,6 +619,7 @@ function pintarBahias(){
     return `<label for="bah${i}">${nom} · ${(c-a).toFixed(2).replace('.',',')} m</label><select id="bah${i}" data-i="${i}">${op('vitrina','Vitrina a la calle')}${op('puerta','Puerta')}${op('muro','Cerrado por dentro')}</select>`;}).join('');
 }
 $('#chk-ext').onchange=e=>exterior(e.target.checked);
+$('#chk-vallas').onchange=e=>{gVallas.visible=e.target.checked;if(e.target.checked)exterior(true);};
 $('#bahias').onchange=e=>{const i=+e.target.dataset.i;recordar();const s=serializar();s.bahias[i]={k:e.target.value,cells:null};cargar(s);};
 
 /* versiones */
