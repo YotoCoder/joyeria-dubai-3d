@@ -45,6 +45,8 @@ button:disabled{opacity:.4;cursor:default;border-color:var(--linea)}
 .seg button{text-align:center}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 #catalogo button,#paleta button{font-size:12.5px}
+#catalogo h3{grid-column:1/-1;margin:6px 0 0;font-size:11.5px;font-weight:600;color:var(--oro)}
+#catalogo h3:first-child{margin-top:0}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
 .grid3 button,.fila button{text-align:center}
 .fila{display:flex;gap:5px;flex-wrap:wrap}
@@ -190,6 +192,7 @@ const PI=Math.PI, rad=d=>d*PI/180;
 const L={ancho:20.1, fondo:6.6, fondo901:10.04, x901:3.7, x902:12.0, alto:3.3};
 const PILARES=[[0,0.3],[3.45,3.95],[7.5,8.65],[11.75,12.25],[15.7,16.85],[19.8,20.1]];
 const PIL_O=[[0,.5],[1.675,2.825],[5.875,6.73]]; // pilares del lateral oeste (z0, z1), del plano 9-01
+const PERSONAS_INI=[{id:'p-ini-1',tipo:'vendedora',x:15.4,z:5.6,rot:180},{id:'p-ini-2',tipo:'clienta',x:14.7,z:4.7,rot:0},{id:'p-ini-3',tipo:'vendedora',x:9.5,z:3.0,rot:180},{id:'p-ini-4',tipo:'cliente',x:9.4,z:1.9,rot:0}];
 const COLUMNAS=[[3.7,0.7,2.3],[3.7,5.4,6.6],[12.0,0.7,2.3],[12.0,5.4,6.6]]; // x, z0, z1
 
 const BAHIAS=[...PILARES.slice(0,-1).map((p,i)=>({a:p[1],c:PILARES[i+1][0],lado:'N'})),{a:.5,c:1.675,lado:'O'},{a:2.825,c:5.875,lado:'O'},{a:6.73,c:10.04,lado:'O'}];
@@ -405,6 +408,80 @@ function mezcla(owner){const st={};const tipo=owner.tipo;
   owner.def.cells.forEach((c,i)=>{st[c.key]=c.rod?'cadenas':tipo&&tipo.startsWith('most')?(i%2?'pulseras':'anillos'):tipo==='torre'?'collares':tipo==='bahia'?(i%2?'juegos':'collares'):['pulseras','juegos','collares'][c.row%3];});
   return st;}
 
+/* ---------- Mobiliario adicional, adornos y personas de referencia ---------- */
+Object.assign(M,{
+  piel:new THREE.MeshStandardMaterial({color:0xc9966f,roughness:.7}),
+  pelo:new THREE.MeshStandardMaterial({color:0x2a1c14,roughness:.6}),
+  uniforme:new THREE.MeshStandardMaterial({color:0x1d2233,roughness:.7}),
+  ropaA:new THREE.MeshStandardMaterial({color:0xb9a98f,roughness:.85}),
+  ropaB:new THREE.MeshStandardMaterial({color:0x4d5f73,roughness:.85}),
+  ropaC:new THREE.MeshStandardMaterial({color:0x7a3040,roughness:.85}),
+  planta:new THREE.MeshStandardMaterial({color:0x3f7d3a,roughness:.8}),
+  maceta:new THREE.MeshStandardMaterial({color:0xe9e4da,roughness:.35}),
+  tronco:new THREE.MeshStandardMaterial({color:0x5a3f28,roughness:.9}),
+  espejo:new THREE.MeshStandardMaterial({color:0xe6edf0,metalness:1,roughness:.12,envMapIntensity:2.2,emissive:0x39424a,emissiveIntensity:.5}),
+  alfombra:new THREE.MeshStandardMaterial({color:0x6b5a4a,roughness:1}),
+});
+const cil=(r1,r2,h,n=16)=>new THREE.CylinderGeometry(r1,r2,h,n);
+const esf=(r,sx=1,sy=1,sz=1)=>{const g=new THREE.SphereGeometry(r,14,10);g.scale(sx,sy,sz);return g;};
+const cap=(r,l,sx=1,sz=1)=>{const g=new THREE.CapsuleGeometry(r,l,4,10);g.scale(sx,1,sz);return g;};
+// Figura humana simplificada, solo para dar escala
+function persona(p,b){
+  const k=p.h/1.7,F=p.mujer,top=p.top,bot=p.bot;
+  [-1,1].forEach(s=>{
+    b.box('velvet',.085*k,.05*k,.23*k,s*.085*k,.025*k,.03*k);
+    if(p.falda)b.add('piel',cap(.045*k,.38*k),s*.075*k,.3*k,0);else b.add(bot,cap(.068*k,.72*k),s*.085*k,.47*k,0);
+    b.add(top,cap(.043*k,.46*k),s*(F?.19:.215)*k,1.13*k,0,0,0,s*.07);
+    b.add('piel',esf(.045*k),s*(F?.21:.235)*k,.84*k,0);
+  });
+  if(p.falda)b.add(bot,cil(.13*k,.19*k,.5*k),0,.74*k,0);
+  b.add(top,cap((F?.13:.15)*k,.3*k,1,.62),0,1.14*k,0);
+  b.add('piel',cil(.042*k,.046*k,.09*k,10),0,1.455*k,0);
+  b.add('piel',esf(.1*k,1,1.15,1.05),0,1.585*k,0);
+  if(F){b.add('pelo',esf(.108*k,1.02,1.1,1.05),0,1.6*k,-.022*k);b.add('pelo',esf(.055*k),0,1.63*k,-.12*k);}
+  else b.add('pelo',esf(.104*k,1.02,.8,1.06),0,1.635*k,-.012*k);
+  if(p.panuelo)b.add('laton',cil(.05*k,.062*k,.035*k,12),0,1.415*k,0);
+  return {w:.5*k,h:p.h,d:.3*k,cells:[]};
+}
+function sillaV(p,b){[[-.2,-.2],[.2,-.2],[-.2,.2],[.2,.2]].forEach(([x,z])=>b.add('laton',cil(.014,.012,.44,8),x,.22,z));
+  b.box('tapiz',.48,.09,.48,0,.485,0);b.box('tapiz',.48,.42,.07,0,.74,-.215,-.08,0,0);return {w:.5,h:.95,d:.52,cells:[]};}
+function sillon(p,b){const W=p.w;b.box('ebano',W-.06,.08,.66,0,.07,0);b.box('tapiz',W,.3,.74,0,.27,0);b.box('tapiz',W-.28,.1,.58,0,.45,.06);
+  b.box('tapiz',W,.5,.16,0,.62,-.29,-.1,0,0);[-1,1].forEach(s=>b.box('tapiz',.13,.3,.74,s*(W/2-.065),.52,0));return {w:W,h:.87,d:.74,cells:[]};}
+function taburete(p,b){b.add('laton',cil(.2,.2,.015,20),0,.008,0);b.add('laton',cil(.022,.022,.6,10),0,.3,0);b.add('tapiz',cil(.19,.19,.09,20),0,.645,0);return {w:.4,h:.69,d:.4,cells:[]};}
+function mesaRedonda(p,b){const r=p.r,h=p.h;b.add('laton',cil(r*.55,r*.55,.015,24),0,.008,0);b.add('laton',cil(.035,.035,h-.04,12),0,h/2,0);b.add('caoba',cil(r,r,.035,32),0,h-.0175,0);return {w:2*r,h,d:2*r,cells:[]};}
+function matero(p,b){
+  b.add('maceta',cil(.2,.15,.42,20),0,.21,0);b.add('tronco',cil(.175,.175,.02,16),0,.415,0);
+  if(p.alto){b.add('tronco',cil(.022,.035,1.0,8),0,.9,0);
+    for(let i=0;i<10;i++){const g=esf(.07,1,.3,5);g.translate(0,0,.33);g.rotateX(-(.25+(i%3)*.38));b.add('planta',g,0,1.36+(i%2)*.05,0,0,i*PI*2/10+(i%3)*.2,0);}
+  }else for(let i=0;i<8;i++){const a=i*2.4;b.add('planta',esf(.13+.03*(i%3),1,1.15,1),Math.cos(a)*.11,.6+.07*(i%4),Math.sin(a)*.11);}
+  return {w:.45,h:p.alto?1.95:1.0,d:.45,cells:[]};}
+function pedestal(p,b){b.box('ebano',.36,.9,.36,0,.45,0);b.box('laton',.38,.02,.38,0,.91,0);
+  b.add('laton',esf(.12,1,1.25,1),0,1.07,0);b.add('laton',cil(.045,.07,.12,14),0,1.25,0);
+  for(let i=0;i<6;i++){const a=i*PI/3;b.add('planta',cil(.006,.006,.3,5),Math.cos(a)*.04,1.44,Math.sin(a)*.04,Math.sin(a)*.25,0,-Math.cos(a)*.25);b.add('crema',esf(.04),Math.cos(a)*.085,1.6,Math.sin(a)*.085);}
+  return {w:.38,h:1.65,d:.38,cells:[]};}
+function espejoPie(p,b){b.box('laton',.56,1.72,.03,0,.9,0,-.09,0,0);b.box('espejo',.5,1.66,.006,0,.9,.018,-.09,0,0);b.box('laton',.03,1.2,.03,0,.6,-.28,.25,0,0);return {w:.56,h:1.76,d:.5,cells:[]};}
+function alfombraM(p,b){b.box('alfombra',2.4,.014,1.6,0,.008,0);b.box('tapiz',2.1,.016,1.3,0,.009,0);return {w:2.4,h:.02,d:1.6,cells:[]};}
+function lamparaPie(p,b){b.add('laton',cil(.15,.15,.015,20),0,.008,0);b.add('laton',cil(.012,.012,1.45,8),0,.73,0);b.add('crema',cil(.14,.19,.28,20),0,1.55,0);b.add('led',esf(.05),0,1.5,0);return {w:.4,h:1.7,d:.4,cells:[]};}
+const G_SM='Sillas y mesas',G_AD='Adornos y plantas',G_PE='Personas para escala';
+Object.assign(TIPOS,{
+  silla:{n:'Silla de visita',g:G_SM,f:b=>sillaV({},b)},
+  sillon:{n:'Sillón',g:G_SM,f:b=>sillon({w:.85},b)},
+  sofa:{n:'Sofá de dos puestos',g:G_SM,f:b=>sillon({w:1.7},b)},
+  taburete:{n:'Taburete de mostrador',g:G_SM,f:b=>taburete({},b)},
+  mesaRed:{n:'Mesa redonda de atención',g:G_SM,f:b=>mesaRedonda({r:.45,h:.75},b)},
+  mesaCentro:{n:'Mesa de centro',g:G_SM,f:b=>mesaRedonda({r:.4,h:.42},b)},
+  matero:{n:'Matero con planta',g:G_AD,f:b=>matero({},b)},
+  materoAlto:{n:'Matero con palma alta',g:G_AD,f:b=>matero({alto:1},b)},
+  pedestal:{n:'Pedestal con jarrón',g:G_AD,f:b=>pedestal({},b)},
+  espejo:{n:'Espejo de pie',g:G_AD,f:b=>espejoPie({},b)},
+  lampara:{n:'Lámpara de pie',g:G_AD,f:b=>lamparaPie({},b)},
+  alfombra:{n:'Alfombra 2,4 × 1,6&nbsp;m',g:G_AD,f:b=>alfombraM({},b)},
+  vendedora:{n:'Vendedora (1,66&nbsp;m)',g:G_PE,f:b=>persona({h:1.66,mujer:1,falda:1,panuelo:1,top:'uniforme',bot:'uniforme'},b)},
+  clienta:{n:'Clienta (1,63&nbsp;m)',g:G_PE,f:b=>persona({h:1.63,mujer:1,top:'ropaC',bot:'ropaA'},b)},
+  cliente:{n:'Cliente (1,78&nbsp;m)',g:G_PE,f:b=>persona({h:1.78,top:'ropaB',bot:'uniforme'},b)},
+});
+if(TIPOS.mesa)TIPOS.mesa.g=G_SM;
+
 /* ---------- Local: piso, paredes, columnas, bóveda ---------- */
 const local=new THREE.Group();scene.add(local);
 function plano(mat,w,h){return new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);}
@@ -471,13 +548,14 @@ const gVallas=new THREE.Group();gVallas.visible=false;gExt.add(gVallas); // vall
 /* ---------- Estado ---------- */
 function estadoInicial(){
   const it=(tipo,x,z,rot)=>({id:crypto.randomUUID?.()||String(Math.random()),tipo,x,z,rot,cells:null});
-  return {v:1,items:[
+  return {v:2,items:[
     it('larga',16.2,6.375,180),
     it('vp5',5.95,6.375,180),it('vp22',8.65,6.375,180),it('panel',10.3,6.375,180),
     it('vp1',3.7,5.175,180),it('vp1',12.0,5.175,180),
     it('vp2',4.275,1.5,90),it('vp2',11.425,1.5,270),it('vp2',12.575,1.5,90),
     it('panel',19.875,5.25,270),it('vp2',19.875,3.5,270),it('vp1',19.875,1.95,270),
     it('vp1',.95,6.375,180),it('vp1',3.0,6.375,180),
+    ...PERSONAS_INI.map(q=>({...q,cells:null})),
   ],bahias:BAHIAS_INI.map(k=>({k}))};
 }
 let estado, items=[], bahias=[], sel=null, modo='muebles', pincel='collares', alcance='celda';
@@ -485,7 +563,7 @@ const gItems=new THREE.Group(),gBahias=new THREE.Group();scene.add(gItems,gBahia
 const hist=[];let nAgregados=0;
 const clon=o=>JSON.parse(JSON.stringify(o));
 function recordar(){hist.push(JSON.stringify(serializar()));if(hist.length>40)hist.shift();}
-function serializar(){return {v:1,items:items.map(o=>({id:o.st.id,tipo:o.tipo,x:+o.st.x.toFixed(3),z:+o.st.z.toFixed(3),rot:o.st.rot,cells:o.st.cells})),bahias:bahias.map(o=>({k:o.st.k,valla:o.st.valla||null,cells:o.st.cells}))};}
+function serializar(){return {v:2,items:items.map(o=>({id:o.st.id,tipo:o.tipo,x:+o.st.x.toFixed(3),z:+o.st.z.toFixed(3),rot:o.st.rot,cells:o.st.cells})),bahias:bahias.map(o=>({k:o.st.k,valla:o.st.valla||null,cells:o.st.cells}))};}
 let picks=[];
 function crearOwner(tipo,def,st,group){
   const o={tipo,def,st,group,cellGroup:new THREE.Group()};group.add(cellGroup(o));
@@ -546,6 +624,7 @@ function cargar(e){
   seleccionar(null);
   [gItems,gBahias].forEach(g=>{limpiar(g);});items=[];bahias=[];picks=[];
   e.bahias=BAHIAS.map((_,i)=>e.bahias[i]||{k:BAHIAS_INI[i]});
+  if((e.v||1)<2){PERSONAS_INI.forEach(q=>{if(!e.items.some(i=>i.id===q.id))e.items.push({...q,cells:null});});e.v=2;} // distribuciones anteriores: se les agregan las personas
   estado=e;e.items.forEach(crearItem);e.bahias.forEach(crearBahia);
   pintarBahias();pintarVallas();autoguardar();
 }
@@ -632,7 +711,8 @@ let tAviso;function aviso(t){const a=$('#aviso');a.textContent=t;a.style.display
 function setModo(m){modo=m;$('#modo-muebles').setAttribute('aria-pressed',m==='muebles');$('#modo-prendas').setAttribute('aria-pressed',m==='prendas');$('#sec-muebles').hidden=m!=='muebles';$('#sec-prendas').hidden=m!=='prendas';resalte.visible=false;if(m==='prendas')seleccionar(null);
   $('#ayuda').textContent=m==='muebles'?'Arrastrar un mueble: moverlo · Arrastrar el fondo: girar la vista · Rueda: acercar · Clic derecho o dos dedos: desplazar':'Clic en un compartimiento: colocar el tipo de exhibición elegido · Arrastrar: girar la vista · Rueda: acercar';}
 $('#modo-muebles').onclick=()=>setModo('muebles');$('#modo-prendas').onclick=()=>setModo('prendas');
-$('#catalogo').innerHTML=Object.entries(TIPOS).map(([k,t])=>`<button data-t="${k}"${t.nuevo?' class="nuevo"':''}>${t.n}</button>`).join('');
+{const G0='Vitrinas y mostradores',grupos=[G0,G_SM,G_AD,G_PE];
+ $('#catalogo').innerHTML=grupos.map(G=>{const bs=Object.entries(TIPOS).filter(([k,t])=>(t.g||G0)===G).map(([k,t])=>`<button data-t="${k}"${t.nuevo?' class="nuevo"':''}>${t.n}</button>`).join('');return bs?`<h3>${G}</h3>${bs}`:'';}).join('');}
 $('#catalogo').onclick=e=>{const b=e.target.closest('button');if(b)agregar(b.dataset.t);};
 $('#paleta').innerHTML=Object.entries(PRENDAS).map(([k,n])=>`<button data-p="${k}" aria-pressed="${k===pincel}">${n}</button>`).join('');
 $('#paleta').onclick=e=>{const b=e.target.closest('button');if(!b)return;pincel=b.dataset.p;$$('#paleta button').forEach(x=>x.setAttribute('aria-pressed',x===b));};
