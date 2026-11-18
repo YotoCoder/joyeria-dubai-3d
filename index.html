@@ -46,6 +46,7 @@ button:disabled{opacity:.4;cursor:default;border-color:var(--linea)}
 .grid3 button,.fila button{text-align:center}
 .fila{display:flex;gap:5px;flex-wrap:wrap}
 .fila>*{flex:1}
+button.principal{background:var(--oro);border-color:var(--oro);color:#1b1410;font-weight:700;text-align:center;padding:9px}
 .nuevo::after{content:"nuevo";margin-left:6px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--oro);border:1px solid var(--oro);border-radius:3px;padding:0 3px;vertical-align:1px}
 #sel{background:var(--panel-2);border-radius:6px;padding:8px 10px;font-variant-numeric:tabular-nums;min-height:54px}
 #sel b{display:block;font-size:13.5px}
@@ -130,7 +131,8 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
       <button data-v="fachada">Fachada</button>
       <button data-v="lateral">Lateral</button>
     </div>
-    <button id="b-png" hidden>Guardar imagen de esta vista (PNG)</button>
+    <button id="b-png" class="principal">Exportar render de esta vista</button>
+    <p class="nota">Coloca la cámara donde quieras y exporta: sale una imagen PNG en alta resolución (3840 px de ancho), sin el panel ni las guías.</p>
   </section>
 
   <section>
@@ -149,7 +151,7 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
     </div>
     <div id="versiones"></div>
     <div class="fila">
-      <button id="b-exportar" hidden>Exportar archivo</button>
+      <button id="b-exportar">Exportar archivo</button>
       <button id="b-importar">Importar archivo</button>
       <button id="b-reset">Volver al inicio</button>
     </div>
@@ -659,14 +661,30 @@ $('#b-guardar').onclick=()=>{const n=$('#ver-nombre').value.trim()||('Versión '
 $('#b-reset').onclick=()=>{recordar();cargar(estadoInicial());aviso('Distribución inicial restaurada. Puedes deshacer.');};
 $('#b-importar').onclick=()=>$('#archivo').click();
 $('#archivo').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const s=JSON.parse(await f.text());if(!s.items||!s.bahias||s.items.some(i=>!TIPOS[i.tipo]))throw 0;recordar();cargar(s);aviso('Archivo importado.');}catch(err){aviso('Ese archivo no es una distribución de este local.');}e.target.value='';};
-// guardar archivos: solo si la página publicada lo permite
-(async()=>{let dl=null;try{dl=window.claude&&await window.claude.use('downloads');}catch(e){}
-  if(!dl)return;
-  const guardar=async(filename,data)=>{try{await dl.save({filename,data});}catch(err){if(err&&err.code!=='declined')aviso('No se pudo guardar el archivo.');}};
-  $('#b-png').hidden=false;$('#b-exportar').hidden=false;
-  $('#b-png').onclick=()=>{const v=caja3.visible,r=resalte.visible;caja3.visible=resalte.visible=false;renderer.render(scene,camera);canvas.toBlob(b=>{caja3.visible=v;resalte.visible=r;if(b)guardar('joyeria-dubai-vista.png',b);},'image/png');};
-  $('#b-exportar').onclick=()=>guardar('joyeria-dubai-distribucion.json',JSON.stringify(serializar(),null,1));
-})();
+// guardar archivos: dentro de Claude pasa por su confirmación de descarga; en una web normal baja directo
+const dlP=window.claude&&window.claude.use?window.claude.use('downloads').catch(()=>null):Promise.resolve(null);
+async function guardarArchivo(filename,data){
+  const dl=await dlP;
+  if(dl){try{await dl.save({filename,data});}catch(err){if(err&&err.code!=='declined')aviso('No se pudo guardar el archivo.');}return;}
+  try{const blob=data instanceof Blob?data:new Blob([data],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+  catch(e){aviso('No se pudo guardar el archivo.');}
+}
+function exportarRender(){
+  aviso('Generando el render…');
+  const v=caja3.visible,r=resalte.visible,pr=renderer.getPixelRatio(),asp=cont.clientWidth/cont.clientHeight;
+  let W=3840,H=Math.round(W/asp);if(H>4096){H=4096;W=Math.round(H*asp);}
+  caja3.visible=resalte.visible=false;
+  const tam=sol.shadow?sol.shadow.mapSize.x:0;if(sol.castShadow&&tam<4096){sol.shadow.mapSize.set(4096,4096);sol.shadow.map&&sol.shadow.map.dispose();sol.shadow.map=null;}
+  renderer.setPixelRatio(1);renderer.setSize(W,H,false);camera.aspect=asp;camera.updateProjectionMatrix();
+  renderer.render(scene,camera);
+  canvas.toBlob(b=>{
+    if(sol.castShadow&&tam<4096){sol.shadow.mapSize.set(tam,tam);sol.shadow.map&&sol.shadow.map.dispose();sol.shadow.map=null;}
+    renderer.setPixelRatio(pr);ajustar();caja3.visible=v;resalte.visible=r;
+    if(b)guardarArchivo('joyeria-dubai-render.png',b);else aviso('No se pudo generar la imagen.');
+  },'image/png');
+}
+$('#b-png').onclick=exportarRender;
+$('#b-exportar').onclick=()=>guardarArchivo('joyeria-dubai-distribucion.json',JSON.stringify(serializar(),null,1));
 
 /* ---------- Arranque ---------- */
 function ajustar(){const w=cont.clientWidth,h=cont.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
@@ -675,7 +693,7 @@ let inicial=estadoInicial();
 try{const s=JSON.parse(localStorage.getItem('joyeria-dubai-actual')||'null');if(s&&s.items&&s.bahias&&s.items.every(i=>TIPOS[i.tipo]))inicial=s;}catch(e){}
 cargar(inicial);pintarVers();setModo('muebles');vista('general');
 if(document.fonts&&document.fonts.load)document.fonts.load("100px Marcellus").then(()=>cargar(serializar())).catch(()=>{});
-window.__app={vista,setModo,serializar,items:()=>items};
+window.__app={exportarRender,vista,setModo,serializar,items:()=>items};
 renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
 </script>
 </body>

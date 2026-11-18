@@ -46,6 +46,7 @@ button:disabled{opacity:.4;cursor:default;border-color:var(--linea)}
 .grid3 button,.fila button{text-align:center}
 .fila{display:flex;gap:5px;flex-wrap:wrap}
 .fila>*{flex:1}
+button.principal{background:var(--oro);border-color:var(--oro);color:#1b1410;font-weight:700;text-align:center;padding:9px}
 .nuevo::after{content:"nuevo";margin-left:6px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--oro);border:1px solid var(--oro);border-radius:3px;padding:0 3px;vertical-align:1px}
 #sel{background:var(--panel-2);border-radius:6px;padding:8px 10px;font-variant-numeric:tabular-nums;min-height:54px}
 #sel b{display:block;font-size:13.5px}
@@ -130,7 +131,8 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
       <button data-v="fachada">Fachada</button>
       <button data-v="lateral">Lateral</button>
     </div>
-    <button id="b-png" hidden>Guardar imagen de esta vista (PNG)</button>
+    <button id="b-png" class="principal">Exportar render de esta vista</button>
+    <p class="nota">Coloca la cámara donde quieras y exporta: sale una imagen PNG en alta resolución (3840 px de ancho), sin el panel ni las guías.</p>
   </section>
 
   <section>
@@ -149,7 +151,7 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
     </div>
     <div id="versiones"></div>
     <div class="fila">
-      <button id="b-exportar" hidden>Exportar archivo</button>
+      <button id="b-exportar">Exportar archivo</button>
       <button id="b-importar">Importar archivo</button>
       <button id="b-reset">Volver al inicio</button>
     </div>
@@ -199,7 +201,8 @@ catch(e){ $('#error').style.display='flex'; throw e; }
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.05;
+renderer.toneMappingExposure=.9;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 cont.prepend(renderer.domElement);
 const canvas=renderer.domElement;
 const scene=new THREE.Scene();
@@ -209,8 +212,10 @@ scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
 const camera=new THREE.PerspectiveCamera(50,1,0.08,200);
 const controls=new OrbitControls(camera,canvas);
 controls.enableDamping=true; controls.dampingFactor=.12; controls.maxPolarAngle=PI/2-0.02; controls.minDistance=.3; controls.maxDistance=60;
-scene.add(new THREE.HemisphereLight(0xffffff,0x8a8880,1.0));
-const sol=new THREE.DirectionalLight(0xfff1d8,1.1); sol.position.set(6,14,-8); scene.add(sol);
+scene.add(new THREE.HemisphereLight(0xffffff,0x9a968c,.62));
+const sol=new THREE.DirectionalLight(0xfff6ea,1.5); sol.position.set(3.4,15,4.8); sol.target.position.set(4.7,0,7); scene.add(sol,sol.target);
+sol.castShadow=true;sol.shadow.mapSize.set(2048,2048);sol.shadow.bias=-.0004;sol.shadow.normalBias=.03;sol.shadow.radius=5;
+{const c=sol.shadow.camera;c.left=-11;c.right=11;c.top=11;c.bottom=-11;c.near=1;c.far=32;}
 [2.2,5.6,9].forEach(z=>{const p=new THREE.PointLight(0xfff1dc,16,10,2); p.position.set(4.6,3.1,z); scene.add(p);});
 
 /* ---------- Texturas dibujadas ---------- */
@@ -218,9 +223,10 @@ function lienzo(w,h,fn){const c=document.createElement('canvas');c.width=w;c.hei
 function rnd(seed){let s=seed;return()=>(s=(s*16807)%2147483647)/2147483647;}
 const texPared=lienzo(256,16,(g,w,h)=>{ // revestimiento blanco acanalado de las columnas
   g.fillStyle='#f3f1ec';g.fillRect(0,0,w,h);for(let x=8;x<w;x+=16){g.fillStyle='#dcd9d2';g.fillRect(x,0,2,h);g.fillStyle='#ffffff';g.fillRect(x+2,0,1,h);}});
-const texPiso=lienzo(512,512,(g,w,h)=>{const r=rnd(5);g.fillStyle='#c6c5c0';g.fillRect(0,0,w,h);
-  for(let i=0;i<40;i++){g.strokeStyle=`rgba(${r()>.5?255:150},${r()>.5?255:150},${r()>.5?250:145},${.06+r()*.14})`;g.lineWidth=1+r()*7;g.beginPath();let x=r()*w,y=r()*h;g.moveTo(x,y);for(let k=0;k<4;k++){x+=(r()-.5)*260;y+=(r()-.5)*260;g.lineTo(x,y);}g.stroke();}
-  g.strokeStyle='#bdbbb5';g.lineWidth=2;g.strokeRect(0,0,w,h);});
+const texPiso=lienzo(1024,1024,(g,w,h)=>{const r=rnd(5);g.fillStyle='#c9c7c1';g.fillRect(0,0,w,h);
+  for(let i=0;i<70;i++){const x=r()*w,y=r()*h,R=80+r()*260,gr=g.createRadialGradient(x,y,0,x,y,R),c=r()>.5?'255,253,248':'150,148,142';gr.addColorStop(0,`rgba(${c},${.05+r()*.1})`);gr.addColorStop(1,`rgba(${c},0)`);g.fillStyle=gr;g.fillRect(x-R,y-R,2*R,2*R);}
+  for(let i=0;i<26;i++){g.strokeStyle=r()>.4?`rgba(255,255,252,${.18+r()*.3})`:`rgba(120,118,112,${.1+r()*.16})`;g.lineWidth=.6+r()*2.6;g.beginPath();let x=r()*w,y=r()*h,a=.5+r()*.7;g.moveTo(x,y);for(let k=0;k<9;k++){a+=(r()-.5)*.9;x+=Math.cos(a)*70;y+=Math.sin(a)*70;g.lineTo(x,y);}g.stroke();}
+  g.strokeStyle='#a9a7a1';g.lineWidth=2;g.strokeRect(0,0,w,h);});
 texPiso.wrapS=texPiso.wrapT=THREE.RepeatWrapping;
 const texMarmol=lienzo(512,512,(g,w,h)=>{ // incrustación de mármol oscuro con líneas crema
   const r=rnd(7);g.fillStyle='#3b2f29';g.fillRect(0,0,w,h);
@@ -273,13 +279,13 @@ Object.assign(M,{
   caoba:new THREE.MeshPhysicalMaterial({color:0xf5f3ee,roughness:.28,clearcoat:.6,clearcoatRoughness:.2}),
   ebano:new THREE.MeshPhysicalMaterial({color:0xeceae4,roughness:.3,clearcoat:.5,clearcoatRoughness:.2}),
   crema:new THREE.MeshStandardMaterial({color:0xfaf9f6,roughness:.5}),
-  cobre:new THREE.MeshStandardMaterial({color:0xe0a888,metalness:.65,roughness:.34,emissive:0x3a1c10,emissiveIntensity:.35}),
-  laton:new THREE.MeshStandardMaterial({color:0xe0a888,metalness:.65,roughness:.34,emissive:0x3a1c10,emissiveIntensity:.35}),
-  vidrio:new THREE.MeshStandardMaterial({color:0xb9e6d2,roughness:.03,metalness:.1,transparent:true,opacity:.2,depthWrite:false}),
-  esmeril:new THREE.MeshStandardMaterial({color:0xaeb5b1,roughness:.55,transparent:true,opacity:.82}),
+  cobre:new THREE.MeshStandardMaterial({color:0xe8b092,metalness:.78,roughness:.28,envMapIntensity:1.4,emissive:0x4a2414,emissiveIntensity:.35}),
+  laton:new THREE.MeshStandardMaterial({color:0xe8b092,metalness:.78,roughness:.28,envMapIntensity:1.4,emissive:0x4a2414,emissiveIntensity:.35}),
+  vidrio:new THREE.MeshPhysicalMaterial({color:0x9fd9bf,roughness:.02,metalness:0,transparent:true,opacity:.26,depthWrite:false,envMapIntensity:1.8,clearcoat:1}),
+  esmeril:new THREE.MeshStandardMaterial({color:0x9aa39e,roughness:.7,transparent:true,opacity:.9}),
   junta:new THREE.MeshStandardMaterial({color:0xc9c6bf,roughness:.8}),
   pared:new THREE.MeshStandardMaterial({map:texPared,roughness:.35}),
-  lisa:new THREE.MeshStandardMaterial({color:0xf4f2ed,roughness:.4}),
+  lisa:new THREE.MeshStandardMaterial({color:0xece9e2,roughness:.55}),
   cesped:new THREE.MeshStandardMaterial({color:0x2f6426,roughness:1}),
   tapiz:new THREE.MeshStandardMaterial({color:0xe6e2da,roughness:.8}),
 });
@@ -289,7 +295,7 @@ class B{
   constructor(){this.b={};}
   add(mat,g,x=0,y=0,z=0,rx=0,ry=0,rz=0){const m=new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx,ry,rz));m.setPosition(x,y,z);g.applyMatrix4(m);(this.b[mat]??=[]).push(g);return this;}
   box(mat,w,h,d,x,y,z,rx=0,ry=0,rz=0){return this.add(mat,new THREE.BoxGeometry(w,h,d),x,y,z,rx,ry,rz);}
-  into(group){for(const k in this.b){const g=mergeGeometries(this.b[k]);this.b[k].forEach(x=>x.dispose());const m=new THREE.Mesh(g,M[k]);if(k==='vidrio')m.renderOrder=2;group.add(m);}return group;}
+  into(group){for(const k in this.b){const g=mergeGeometries(this.b[k]);this.b[k].forEach(x=>x.dispose());const m=new THREE.Mesh(g,M[k]);if(k==='vidrio')m.renderOrder=2;m.castShadow=!/vidrio|esmeril|led|tinte/.test(k);m.receiveShadow=k!=='led';group.add(m);}return group;}
 }
 function limpiar(group){group.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.userData.propio){o.material.map&&o.material.map.dispose();o.material.dispose();}});group.clear();}
 
@@ -457,11 +463,11 @@ function mezcla(owner){const st={};const tipo=owner.tipo;
 const local=new THREE.Group();scene.add(local);
 function plano(mat,w,h){return new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);}
 function muro(x1,z1,x2,z2,nx,nz,mat=M.lisa,y0=0,y1=L.alto){
-  const m=plano(mat,Math.hypot(x2-x1,z2-z1),y1-y0);m.position.set((x1+x2)/2,(y0+y1)/2,(z1+z2)/2);m.rotation.y=Math.atan2(nx,nz);local.add(m);return m;}
+  const m=plano(mat,Math.hypot(x2-x1,z2-z1),y1-y0);m.position.set((x1+x2)/2,(y0+y1)/2,(z1+z2)/2);m.rotation.y=Math.atan2(nx,nz);m.receiveShadow=true;local.add(m);return m;}
 (function construirLocal(){
   const ZONAS=[[0,0,L.ancho,L.fondo],[0,L.fondo,L.xOf,L.zOf],[0,L.zOf,L.xRin,L.fondo901]]; // x0,z0,x1,z1
   ZONAS.forEach(([x0,z0,x1,z1])=>{const w=x1-x0,d=z1-z0,t=texPiso.clone();t.needsUpdate=true;t.repeat.set(w/1.2,d/1.2);
-    const p=plano(new THREE.MeshStandardMaterial({map:t,roughness:.12,metalness:.05}),w,d);p.rotation.x=-PI/2;p.position.set(x0+w/2,0,z0+d/2);local.add(p);
+    const p=plano(new THREE.MeshStandardMaterial({map:t,color:0xc4c2bd,roughness:.06,metalness:.12,envMapIntensity:1.25}),w,d);p.rotation.x=-PI/2;p.position.set(x0+w/2,0,z0+d/2);p.receiveShadow=true;local.add(p);
     const c=plano(M.techo,w,d);c.rotation.x=PI/2;c.position.set(x0+w/2,L.alto,z0+d/2);local.add(c);});
   const base=new THREE.Mesh(new THREE.BoxGeometry(L.ancho+.5,.2,L.fondo901+.5),new THREE.MeshStandardMaterial({color:0x2a2724,roughness:.9}));base.position.set(L.ancho/2,-.105,L.fondo901/2);local.add(base);
   // perímetro ciego: caras hacia adentro
@@ -478,7 +484,14 @@ function muro(x1,z1,x2,z2,nx,nz,mat=M.lisa,y0=0,y1=L.alto){
   PIL_O.forEach(([a,c])=>{const g=c-a>.5&&a>1&&c<12?.8:.3;b.box('pared',g,L.alto,c-a,g/2-.05,L.alto/2,(a+c)/2);});
   b.box('pared',.3,L.alto,1.7,L.ancho-.1,L.alto/2,5.68); // columna A-D sobre el muro ciego
   b.into(local);
-  const pts=[];for(let x=.9;x<L.ancho;x+=1.42)for(let z=.9;z<L.fondo;z+=1.3)pts.push([x,z]);
+  const caraAbajo=(mat,x0,z0,x1,z1,y)=>{const m=plano(mat,x1-x0,z1-z0);m.rotation.x=PI/2;m.position.set((x0+x1)/2,y,(z0+z1)/2);local.add(m);};
+  const F=.85,yb=L.alto-.28; // foso: faja perimetral más baja
+  caraAbajo(M.techo,0,0,L.ancho,F,yb);caraAbajo(M.techo,0,L.fondo-F,L.ancho,L.fondo,yb);caraAbajo(M.techo,0,F,F,L.fondo-F,yb);caraAbajo(M.techo,L.ancho-F,F,L.ancho,L.fondo-F,yb);
+  muro(F,F,L.ancho-F,F,0,1,M.techo,yb,L.alto);muro(F,L.fondo-F,L.ancho-F,L.fondo-F,0,-1,M.techo,yb,L.alto);muro(F,F,F,L.fondo-F,1,0,M.techo,yb,L.alto);muro(L.ancho-F,F,L.ancho-F,L.fondo-F,-1,0,M.techo,yb,L.alto);
+  const oscuro=new THREE.MeshStandardMaterial({color:0x3a3a38,roughness:.8});
+  [[2.6,3.0],[2.6,5.5],[2.6,8.0],[6.3,3.0],[6.3,5.5],[6.3,8.0]].forEach(([x,z])=>caraAbajo(oscuro,x-.75,z-.035,x+.75,z+.035,L.alto-.003));
+  caraAbajo(M.led,.6,.34,L.ancho-.6,.42,2.86);caraAbajo(M.led,.34,.9,.42,L.fondo-.3,2.86);
+  const pts=[];for(let x=1.5;x<L.ancho-1;x+=1.45)for(let z=1.5;z<L.fondo-1;z+=1.33)pts.push([x,z]);
   const focos=new THREE.InstancedMesh(new THREE.CircleGeometry(.06,14),M.led,pts.length),m4=new THREE.Matrix4(),q=new THREE.Quaternion().setFromEuler(new THREE.Euler(PI/2,0,0));
   pts.forEach(([x,z],k)=>{m4.compose(new THREE.Vector3(x,L.alto-.004,z),q,new THREE.Vector3(1,1,1));focos.setMatrixAt(k,m4);});local.add(focos);
 })();
@@ -706,14 +719,30 @@ $('#b-guardar').onclick=()=>{const n=$('#ver-nombre').value.trim()||('Versión '
 $('#b-reset').onclick=()=>{recordar();cargar(estadoInicial());aviso('Distribución inicial restaurada. Puedes deshacer.');};
 $('#b-importar').onclick=()=>$('#archivo').click();
 $('#archivo').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const s=JSON.parse(await f.text());if(!s.items||!s.bahias||s.items.some(i=>!TIPOS[i.tipo]))throw 0;recordar();cargar(s);aviso('Archivo importado.');}catch(err){aviso('Ese archivo no es una distribución de este local.');}e.target.value='';};
-// guardar archivos: solo si la página publicada lo permite
-(async()=>{let dl=null;try{dl=window.claude&&await window.claude.use('downloads');}catch(e){}
-  if(!dl)return;
-  const guardar=async(filename,data)=>{try{await dl.save({filename,data});}catch(err){if(err&&err.code!=='declined')aviso('No se pudo guardar el archivo.');}};
-  $('#b-png').hidden=false;$('#b-exportar').hidden=false;
-  $('#b-png').onclick=()=>{const v=caja3.visible,r=resalte.visible;caja3.visible=resalte.visible=false;renderer.render(scene,camera);canvas.toBlob(b=>{caja3.visible=v;resalte.visible=r;if(b)guardar('goldzco-local2-vista.png',b);},'image/png');};
-  $('#b-exportar').onclick=()=>guardar('goldzco-local2-distribucion.json',JSON.stringify(serializar(),null,1));
-})();
+// guardar archivos: dentro de Claude pasa por su confirmación de descarga; en una web normal baja directo
+const dlP=window.claude&&window.claude.use?window.claude.use('downloads').catch(()=>null):Promise.resolve(null);
+async function guardarArchivo(filename,data){
+  const dl=await dlP;
+  if(dl){try{await dl.save({filename,data});}catch(err){if(err&&err.code!=='declined')aviso('No se pudo guardar el archivo.');}return;}
+  try{const blob=data instanceof Blob?data:new Blob([data],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+  catch(e){aviso('No se pudo guardar el archivo.');}
+}
+function exportarRender(){
+  aviso('Generando el render…');
+  const v=caja3.visible,r=resalte.visible,pr=renderer.getPixelRatio(),asp=cont.clientWidth/cont.clientHeight;
+  let W=3840,H=Math.round(W/asp);if(H>4096){H=4096;W=Math.round(H*asp);}
+  caja3.visible=resalte.visible=false;
+  const tam=sol.shadow?sol.shadow.mapSize.x:0;if(sol.castShadow&&tam<4096){sol.shadow.mapSize.set(4096,4096);sol.shadow.map&&sol.shadow.map.dispose();sol.shadow.map=null;}
+  renderer.setPixelRatio(1);renderer.setSize(W,H,false);camera.aspect=asp;camera.updateProjectionMatrix();
+  renderer.render(scene,camera);
+  canvas.toBlob(b=>{
+    if(sol.castShadow&&tam<4096){sol.shadow.mapSize.set(tam,tam);sol.shadow.map&&sol.shadow.map.dispose();sol.shadow.map=null;}
+    renderer.setPixelRatio(pr);ajustar();caja3.visible=v;resalte.visible=r;
+    if(b)guardarArchivo('goldzco-local2-render.png',b);else aviso('No se pudo generar la imagen.');
+  },'image/png');
+}
+$('#b-png').onclick=exportarRender;
+$('#b-exportar').onclick=()=>guardarArchivo('goldzco-local2-distribucion.json',JSON.stringify(serializar(),null,1));
 
 /* ---------- Arranque ---------- */
 function ajustar(){const w=cont.clientWidth,h=cont.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
@@ -722,7 +751,7 @@ let inicial=estadoInicial();
 try{const s=JSON.parse(localStorage.getItem('goldzco-local2-actual')||'null');if(s&&s.items&&s.bahias&&s.items.every(i=>TIPOS[i.tipo]))inicial=s;}catch(e){}
 cargar(inicial);pintarVers();setModo('muebles');vista('general');
 if(document.fonts&&document.fonts.load)document.fonts.load("100px Marcellus").then(()=>cargar(serializar())).catch(()=>{});
-window.__app={vista,setModo,serializar,items:()=>items};
+window.__app={exportarRender,vista,setModo,serializar,items:()=>items};
 renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});
 </script>
 </body>

@@ -16,7 +16,7 @@ Abre `index.html` en un navegador actualizado (Chrome, Edge o Safari). Necesita 
 - Del plano: frente de 20,10 m, fondo de 6,60 m (10,04 m en el 9-01), columnas, cinco vanos al frente y tres en el lateral.
 - Estimado a partir de fotos y video: posición de cada mueble, altura del techo (3,30 m), medidas de las vitrinas, ubicación de la bóveda y cuáles vanos son puerta.
 
-Los botones de guardar imagen y exportar archivo solo funcionan en la versión publicada dentro de Claude.
+El botón "Exportar render de esta vista" guarda un PNG de 3840 px de ancho desde la posición de cámara elegida.
 
 ## Segundo local
 
