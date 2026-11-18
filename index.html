@@ -30,6 +30,9 @@ body{background:var(--fondo);color:var(--texto);font-family:var(--f-body);font-s
 header{padding:16px 16px 12px;border-bottom:1px solid var(--linea)}
 h1{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;letter-spacing:.02em;color:var(--oro)}
 header p{margin:4px 0 0;color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums}
+#nube{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;color:var(--texto)}
+#nube::before{content:"";width:8px;height:8px;border-radius:50%;background:#8a7f70;flex:none}
+#nube[data-ok="1"]::before{background:#6fcf7f;box-shadow:0 0 6px #6fcf7f}
 section{padding:12px 16px;border-bottom:1px solid var(--linea);display:flex;flex-direction:column;gap:8px}
 h2{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tenue);margin:0}
 button,select,input{font:inherit;color:inherit}
@@ -77,6 +80,7 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
   <header>
     <h1>Goldzco</h1>
     <p>Retail 9-01 · 9-02 · 9-03 — 173,44 m² — frente 20,10 m</p>
+    <p id="nube" data-ok="0">Guardado solo en este navegador</p>
   </header>
 
   <section>
@@ -156,7 +160,7 @@ select,input[type=text]{background:var(--fondo);border:1px solid var(--linea);bo
       <button id="b-reset">Volver al inicio</button>
     </div>
     <input type="file" id="archivo" accept=".json,application/json" hidden>
-    <p class="nota">Las versiones se guardan en este navegador. Exporta el archivo para conservarlas o pasarlas a otro equipo.</p>
+    <p class="nota" id="nota-vers">Las versiones se guardan en este navegador. Exporta el archivo para conservarlas o pasarlas a otro equipo.</p>
   </section>
 
   <section>
@@ -545,7 +549,7 @@ function cargar(e){
   estado=e;e.items.forEach(crearItem);e.bahias.forEach(crearBahia);
   pintarBahias();pintarVallas();autoguardar();
 }
-function autoguardar(){try{localStorage.setItem('joyeria-dubai-actual',JSON.stringify(serializar()));}catch(e){}}
+function autoguardar(){try{localStorage.setItem('joyeria-dubai-actual',JSON.stringify(serializar()));}catch(e){}subir();}
 
 /* ---------- Selección y edición de muebles ---------- */
 const caja3=new THREE.BoxHelper(new THREE.Object3D(),0xffd45e);caja3.visible=false;scene.add(caja3);
@@ -557,7 +561,7 @@ function pintarSel(){
     el.innerHTML=`<b>${TIPOS[sel.tipo].n}</b><span>${f(d.w)} m ancho × ${f(d.d)} m fondo × ${f(d.h)} m alto</span><span>A ${f(sel.st.x)} m del muro oeste y ${f(sel.st.z)} m de la fachada</span>`;}
   ['#b-girar','#b-girar15','#b-pared','#b-duplicar','#b-eliminar'].forEach(s=>$(s).disabled=!sel);
 }
-function mover(o,x,z){o.st.x=Math.min(L.ancho,Math.max(0,Math.round(x*20)/20));o.st.z=Math.min(L.fondo901,Math.max(0,Math.round(z*20)/20));colocar(o);caja3.setFromObject(o.group);pintarSel();}
+function mover(o,x,z){o.st.x=Math.min(L.ancho,Math.max(0,Math.round(x*20)/20));o.st.z=Math.min(L.fondo901,Math.max(0,Math.round(z*20)/20));colocar(o);caja3.setFromObject(o.group);pintarSel();subir(true);}
 function girar(g){if(!sel)return;recordar();sel.st.rot=(sel.st.rot+g)%360;colocar(sel);caja3.setFromObject(sel.group);autoguardar();}
 function aPared(){if(!sel)return;recordar();const s=sel.st,d=sel.def.d/2;
   const op=[[s.z,()=>{s.rot=0;s.z=d+.3;}],[L.fondo-s.z,()=>{s.rot=180;s.z=L.fondo-d;}],[s.x,()=>{s.rot=90;s.x=d;}],[L.ancho-s.x,()=>{s.rot=270;s.x=L.ancho-d;}]];
@@ -595,7 +599,7 @@ canvas.addEventListener('pointermove',e=>{
 });
 canvas.addEventListener('pointerup',e=>{
   const quieto=abajo&&Math.hypot(e.clientX-abajo.x,e.clientY-abajo.y)<5;abajo=null;
-  if(arrastre){if(arrastre.movido)autoguardar();arrastre=null;controls.enabled=true;return;}
+  if(arrastre){const a=arrastre;arrastre=null;controls.enabled=true;if(a.movido){finArrastreNube(a.o);autoguardar();}else if(NUBE.pend){const d=NUBE.pend;NUBE.pend=null;aplicarRemoto(d);}return;}
   if(!quieto||e.button!==0)return;rayo(e);
   if(modo==='muebles'){if(!itemBajo())seleccionar(null);}
   else{const p=celdaBajo();if(p)aplicar(p.userData.owner,p.userData.cell);}
@@ -650,8 +654,9 @@ $('#bahias').onchange=e=>{recordar();if(e.target.dataset.v!==undefined){bahias[+
   const i=+e.target.dataset.i,s=serializar();s.bahias[i]={k:e.target.value,valla:s.bahias[i].valla,cells:null};cargar(s);};
 
 /* versiones */
-function leerVers(){try{return JSON.parse(localStorage.getItem('joyeria-dubai-versiones')||'{}');}catch(e){return {};}}
-function escVers(v){try{localStorage.setItem('joyeria-dubai-versiones',JSON.stringify(v));return true;}catch(e){aviso('Este navegador no permitió guardar. Usa Exportar archivo.');return false;}}
+function leerVers(){if(NUBE.activa&&NUBE.vers)return NUBE.vers;try{return JSON.parse(localStorage.getItem('joyeria-dubai-versiones')||'{}');}catch(e){return {};}}
+function escVers(v){if(NUBE.activa){NUBE.vers=v;fetch(urlNube('/versiones'),{method:'PUT',body:JSON.stringify(JSON.stringify(v))}).catch(()=>aviso('No se pudo guardar la versión en la nube.'));return true;}
+  try{localStorage.setItem('joyeria-dubai-versiones',JSON.stringify(v));return true;}catch(e){aviso('Este navegador no permitió guardar. Usa Exportar archivo.');return false;}}
 function pintarVers(){const v=leerVers(),ks=Object.keys(v);
   $('#versiones').innerHTML=ks.length?ks.map(k=>`<div class="ver"><span></span><button data-c="1">Abrir</button><button data-b="1">Borrar</button></div>`).join(''):'<p class="nota">Todavía no hay versiones guardadas.</p>';
   $$('#versiones .ver').forEach((d,i)=>{d.dataset.k=ks[i];d.querySelector('span').textContent=ks[i];});}
@@ -686,12 +691,59 @@ function exportarRender(){
 $('#b-png').onclick=exportarRender;
 $('#b-exportar').onclick=()=>guardarArchivo('joyeria-dubai-distribucion.json',JSON.stringify(serializar(),null,1));
 
+/* ---------- Nube: guardado y sincronización en tiempo real (Firebase Realtime Database) ----------
+   La clave va en el enlace, después de #. Sin clave válida, todo queda solo en este navegador. */
+const NUBE={db:window.__DB||'https://goldzco-a7e0f-default-rtdb.firebaseio.com',local:'local1',clave:(location.hash||'').slice(1),yo:Math.random().toString(36).slice(2,10),activa:false,lista:false,vers:null,pend:null,ultimo:''};
+NUBE.activa=/^[A-Za-z0-9_-]{16,}$/.test(NUBE.clave);
+const urlNube=sub=>`${NUBE.db}/salas/${NUBE.clave}/${NUBE.local}${sub}.json`;
+function estadoNube(t,ok){const e=$('#nube');e.textContent=t;e.dataset.ok=ok?'1':'0';}
+let tSubir=null,tUlt=0,aplicandoRemoto=false;
+function subir(rapido){
+  if(!NUBE.activa||!NUBE.lista||aplicandoRemoto)return; // no se sube nada hasta haber recibido lo que ya hay en la nube
+  clearTimeout(tSubir);
+  tSubir=setTimeout(()=>{tUlt=Date.now();const e=JSON.stringify(serializar());if(e===NUBE.ultimo)return;NUBE.ultimo=e;
+    fetch(urlNube('/actual'),{method:'PUT',body:JSON.stringify({e,por:NUBE.yo,t:Date.now()})}).then(r=>{if(!r.ok)throw 0;estadoNube('Sincronizado en la nube',true);})
+      .catch(()=>{NUBE.ultimo='';estadoNube('Sin conexión con la nube: los cambios quedan en este navegador',false);});
+  },rapido?Math.max(0,250-(Date.now()-tUlt)):300);
+}
+function valido(st){return st&&Array.isArray(st.items)&&Array.isArray(st.bahias)&&st.items.every(i=>TIPOS[i.tipo]);}
+function aplicarRemoto(d){
+  if(!d||!d.e||d.e===NUBE.ultimo)return;
+  if(arrastre){NUBE.pend=d;return;}
+  let st;try{st=JSON.parse(d.e);}catch(e){return;}
+  if(!valido(st))return;
+  const selId=sel&&sel.st.id;aplicandoRemoto=true;NUBE.ultimo=d.e;cargar(st);aplicandoRemoto=false;
+  if(selId){const o=items.find(i=>i.st.id===selId);if(o)seleccionar(o);}
+}
+// si llegó un cambio ajeno mientras yo arrastraba, lo conservo y solo impongo la posición de mi mueble
+function finArrastreNube(o){
+  if(!NUBE.pend)return;const d=NUBE.pend;NUBE.pend=null;
+  try{const st=JSON.parse(d.e);if(!valido(st))return;const it=st.items.find(i=>i.id===o.st.id);if(it){it.x=o.st.x;it.z=o.st.z;}
+    aplicandoRemoto=true;cargar(st);aplicandoRemoto=false;const n=items.find(i=>i.st.id===o.st.id);if(n)seleccionar(n);}catch(e){}
+}
+function conectarNube(){
+  if(!NUBE.activa){estadoNube('Guardado solo en este navegador',false);return;}
+  estadoNube('Conectando con la nube…',false);
+  $('#nota-vers').textContent='Las versiones se guardan en la nube y las ve cualquiera que abra este mismo enlace.';
+  const leerV=v=>{try{return v?JSON.parse(v):{};}catch(e){return {};}};
+  let primera=true;const es=new EventSource(urlNube(''));
+  const recibir=ev=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}if(!m)return;estadoNube('Sincronizado en la nube',true);
+    if(m.path==='/'){const act=m.data&&m.data.actual;NUBE.vers=leerV(m.data&&m.data.versiones);pintarVers();
+      if(primera){primera=false;NUBE.lista=true;if(act)aplicarRemoto(act);else{NUBE.ultimo='';subir();}}else if(act&&act.por!==NUBE.yo)aplicarRemoto(act);}
+    else if(m.path==='/actual'){if(m.data&&m.data.por!==NUBE.yo)aplicarRemoto(m.data);}
+    else if(m.path==='/versiones'){NUBE.vers=leerV(m.data);pintarVers();}
+  };
+  es.addEventListener('put',recibir);
+  es.addEventListener('cancel',()=>estadoNube('La nube rechazó el acceso: revisa las reglas de la base de datos',false));
+  es.onerror=()=>estadoNube('Sin conexión con la nube: reintentando…',false);
+}
+
 /* ---------- Arranque ---------- */
 function ajustar(){const w=cont.clientWidth,h=cont.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 new ResizeObserver(ajustar).observe(cont);ajustar();
 let inicial=estadoInicial();
 try{const s=JSON.parse(localStorage.getItem('joyeria-dubai-actual')||'null');if(s&&s.items&&s.bahias&&s.items.every(i=>TIPOS[i.tipo]))inicial=s;}catch(e){}
-cargar(inicial);pintarVers();setModo('muebles');vista('general');
+cargar(inicial);pintarVers();setModo('muebles');vista('general');conectarNube();
 if(document.fonts&&document.fonts.load)document.fonts.load("100px Marcellus").then(()=>cargar(serializar())).catch(()=>{});
 window.__app={exportarRender,vista,setModo,serializar,items:()=>items};
 renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);});

@@ -21,3 +21,7 @@ El botón "Exportar render de esta vista" guarda un PNG de 3840 px de ancho desd
 ## Segundo local
 
 `local2/index.html` es la misma herramienta adaptada al segundo local (F&B 02, 110,80 m²), con los muebles blancos con filetes cobre y vidrio que aparecen en su video. La posición de los muebles y de la oficina es una estimación a partir del video.
+
+## Guardado en la nube
+
+Si el enlace lleva una clave después de `#` (16 caracteres o más), la distribución y las versiones se guardan en Firebase Realtime Database y se sincronizan en tiempo real entre todos los que abran ese mismo enlace. Sin clave, todo queda solo en el navegador. La clave no está en este repositorio.
