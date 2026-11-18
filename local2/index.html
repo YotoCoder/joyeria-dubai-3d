@@ -563,7 +563,6 @@ function muro(x1,z1,x2,z2,nx,nz,mat=M.lisa,y0=0,y1=L.alto){
   b.box('vidrio',.88,2.18,.012,2.45,1.09,L.fondo);b.box('cobre',.03,.5,.03,2.12,1.1,L.fondo-.03);
   PILARES.forEach(([a,c])=>b.box('pared',c-a,L.alto,.3,(a+c)/2,L.alto/2,.1));
   PIL_O.forEach(([a,c])=>{const g=c-a>.5&&a>1&&c<12?.8:.3;b.box('pared',g,L.alto,c-a,g/2-.05,L.alto/2,(a+c)/2);});
-  b.box('pared',.3,L.alto,1.7,L.ancho-.1,L.alto/2,5.68); // columna A-D sobre el muro ciego
   b.into(local);
   const caraAbajo=(mat,x0,z0,x1,z1,y)=>{const m=plano(mat,x1-x0,z1-z0);m.rotation.x=PI/2;m.position.set((x0+x1)/2,y,(z0+z1)/2);local.add(m);};
   const F=.85,yb=L.alto-.28; // foso: faja perimetral más baja
